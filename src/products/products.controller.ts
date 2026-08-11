@@ -21,10 +21,12 @@ import { ListProductsDto } from './dto/list-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
 
+// GET is open to any authenticated user — the project detail page's "add
+// material" flow needs to read this catalog. Every mutation stays
+// VINCEL_ADMIN-only (admin dashboard).
 @ApiTags('products')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.VINCEL_ADMIN)
+@UseGuards(JwtAuthGuard)
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
@@ -44,30 +46,40 @@ export class ProductsController {
   }
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Cadastra um produto.' })
   create(@Body() dto: CreateProductDto) {
     return this.productsService.create(dto);
   }
 
   @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Edita um produto.' })
   update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.productsService.update(id, dto);
   }
 
   @Patch(':id/activate')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Reativa um produto.' })
   activate(@Param('id') id: string) {
     return this.productsService.setActive(id, true);
   }
 
   @Patch(':id/deactivate')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Desativa um produto.' })
   deactivate(@Param('id') id: string) {
     return this.productsService.setActive(id, false);
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Remove (soft delete) um produto.' })
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
@@ -83,6 +95,8 @@ export class ProductsController {
   }
 
   @Post(':id/prices')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({
     summary:
       'Registra o preço praticado por um fornecedor para o produto (cria uma nova versão; o histórico anterior não é alterado).',
