@@ -5,9 +5,11 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ProductsModule } from './products/products.module';
 import { ProjectTypesModule } from './project-types/project-types.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ServicesModule } from './services/services.module';
+import { SuppliersModule } from './suppliers/suppliers.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -20,6 +22,8 @@ import { UsersModule } from './users/users.module';
     ProjectTypesModule,
     ProjectsModule,
     ServicesModule,
+    SuppliersModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

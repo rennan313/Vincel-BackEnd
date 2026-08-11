@@ -80,21 +80,98 @@ enum ProjectStatus {
   canceled
 }
 
+type ProjectComponentItem {
+  id       String
+  name     String
+  quantity Int
+  areaSqm  Float?
+  note     String?
+}
+
+enum Complexity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+type PlanningPhase {
+  key           String
+  name          String
+  estimatedDays Int
+}
+
+/** How honorários is calculated — per_sqm (rate × área) or per_hour (rate × estimatedHours). */
+enum FeeModel {
+  per_sqm
+  per_hour
+}
+
+enum PaymentMethod {
+  cash
+  installments
+  by_phase
+  monthly
+  custom
+}
+
+type ProjectInstallment {
+  id     String
+  label  String
+  amount Float
+}
+
+type ProjectAddress {
+  zip          String?
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+}
+
 model Project {
-  id         String        @id @default(auto()) @map("_id") @db.ObjectId
-  name       String
-  type       String
+  id     String        @id @default(auto()) @map("_id") @db.ObjectId
+  name   String
+  type   String
+  // Free-text description, only meaningful when type is the "outro" catalog entry.
+  customType String?
+  areaSqm    Float?
   status     ProjectStatus @default(in_progress)
+
   // Set when linked to a Client record; the name is always denormalized
   // here so search/listing works even for a free-typed (unlinked) client.
-  clientId   String?       @db.ObjectId
-  client     Client?       @relation(fields: [clientId], references: [id])
+  clientId   String? @db.ObjectId
+  client     Client? @relation(fields: [clientId], references: [id])
   clientName String
-  active     Boolean       @default(true)
-  companyId  String        @db.ObjectId
-  company    Company       @relation(fields: [companyId], references: [id])
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+
+  services           String[]
+  customServiceLabel String?
+  components         ProjectComponentItem[]
+
+  planningPhases PlanningPhase[]
+  complexity     Complexity?
+
+  constructionBudget Float?
+  feeModel           FeeModel?
+  feeRate            Float?
+  // Only meaningful when feeModel is per_hour.
+  estimatedHours Float?
+  // Derived on the front from feeRate × área (per_sqm) or feeRate × estimatedHours (per_hour).
+  feeAmount     Float?
+  paymentMethod PaymentMethod?
+  installments  ProjectInstallment[]
+
+  startDate DateTime?
+  endDate   DateTime?
+
+  address ProjectAddress?
+
+  active     Boolean   @default(true)
+  companyId  String    @db.ObjectId
+  company    Company   @relation(fields: [companyId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
 
   @@index([companyId])
@@ -104,7 +181,7 @@ model Project {
 // admin dashboard, read by every company's project-creation flow.
 model ProjectType {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
+  name      String    @unique
   // lucide-react icon name (see src/components/ui/icons.ts on the front).
   icon      String
   active    Boolean   @default(true)
@@ -115,11 +192,60 @@ model ProjectType {
 
 model Service {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String    @unique
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model Product {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  sku         String    @unique
+  name        String
+  description String?
+  // Unidade de medida, texto livre (ex: "m²", "un", "kg").
+  unit        String
+  weight      Float?
+  brand       String?
+  image       String?
+  width       Float?
+  height      Float?
+  depth       Float?
+  colors      String[]
+  category    String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  prices Price[]
+}
+
+model Supplier {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
   name      String
   active    Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+
+  prices Price[]
+}
+
+// Immutable: a price change always inserts a new record. The current price
+// for a product+supplier pair is the one with the latest validFrom.
+model Price {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId  String   @db.ObjectId
+  product    Product  @relation(fields: [productId], references: [id])
+  supplierId String   @db.ObjectId
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  price      Float
+  validFrom  DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([productId, supplierId, validFrom])
 }
 
 model User {
