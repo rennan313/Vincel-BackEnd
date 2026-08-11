@@ -33,9 +33,10 @@ model Company {
   updatedAt    DateTime            @updatedAt
   deletedAt    DateTime?
 
-  users    User[]
-  clients  Client[]
-  projects Project[]
+  users         User[]
+  clients       Client[]
+  projects      Project[]
+  subscriptions Subscription[]
 }
 
 enum ClientType {
@@ -284,4 +285,108 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
+}
+
+// The acquirer actually processing a given Plan/Subscription/PaymentCharge.
+// Kept as its own enum (not derived from a config list) so a value already
+// persisted on a record stays meaningful even if that acquirer is later
+// disabled for new signups.
+enum AcquirerType {
+  MERCADO_PAGO
+}
+
+enum SubscriptionStatus {
+  // Checkout created at the acquirer, payer hasn't completed authorization yet.
+  PENDING
+  // Authorized, current date within the plan's trial window.
+  TRIALING
+  // Authorized, past trial, in good standing.
+  ACTIVE
+  // Authorized, but the last charge attempt failed.
+  PAST_DUE
+  CANCELED
+}
+
+enum ChargeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REFUNDED
+}
+
+// Per-acquirer identifier for a Plan (e.g. Mercado Pago's preapproval_plan
+// id). A Plan can be synced to more than one acquirer at once.
+type PlanAcquirerRef {
+  acquirer       AcquirerType
+  externalPlanId String
+}
+
+// Shared reference data (no companyId), managed only by VINCEL_ADMIN — the
+// catalog of subscription tiers companies choose from.
+model Plan {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  // Monthly amount charged after the trial, in BRL.
+  price       Float
+  trialDays   Int       @default(0)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  acquirerRefs  PlanAcquirerRef[]
+  subscriptions Subscription[]
+}
+
+// One row per company subscription lifecycle. A company that cancels and
+// re-subscribes gets a new row rather than reusing the old one, so history
+// isn't overwritten — enforced at the application layer, not a DB constraint.
+model Subscription {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  companyId String  @db.ObjectId
+  company   Company @relation(fields: [companyId], references: [id])
+  planId    String  @db.ObjectId
+  plan      Plan    @relation(fields: [planId], references: [id])
+
+  acquirer               AcquirerType
+  // Null until the acquirer confirms the checkout (e.g. Mercado Pago's
+  // preapproval id) — set from the webhook, not at creation time.
+  externalSubscriptionId String?
+  status                 SubscriptionStatus @default(PENDING)
+  // Where the payer completes authorization; only meaningful while status is PENDING.
+  checkoutUrl            String?
+
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  canceledAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  charges PaymentCharge[]
+
+  @@index([companyId])
+  @@index([acquirer, externalSubscriptionId])
+}
+
+// One row per billing event reported by an acquirer's webhook. The
+// (acquirer, externalId) uniqueness is what makes webhook processing
+// idempotent under retries.
+model PaymentCharge {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  subscriptionId String       @db.ObjectId
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+
+  acquirer   AcquirerType
+  externalId String
+  status     ChargeStatus
+  amount     Float
+  occurredAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@unique([acquirer, externalId])
+  @@index([subscriptionId])
 }
