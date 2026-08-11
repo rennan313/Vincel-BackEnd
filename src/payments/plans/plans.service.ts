@@ -24,12 +24,17 @@ export class PlansService {
   }
 
   async create(dto: CreatePlanDto) {
+    if (dto.isDefault) {
+      await this.clearOtherDefaults();
+    }
+
     const plan = await this.prisma.plan.create({
       data: {
         name: dto.name,
         description: dto.description,
         price: dto.price,
         trialDays: dto.trialDays ?? 0,
+        isDefault: dto.isDefault ?? false,
       },
     });
 
@@ -61,6 +66,9 @@ export class PlansService {
   // after it has live subscribers.
   async update(id: string, dto: UpdatePlanDto) {
     await this.findScoped(id);
+    if (dto.isDefault) {
+      await this.clearOtherDefaults(id);
+    }
     return this.prisma.plan.update({ where: { id }, data: dto });
   }
 
@@ -83,5 +91,17 @@ export class PlansService {
       throw new NotFoundException('Plano não encontrado.');
     }
     return plan;
+  }
+
+  // At most one plan is default at a time — enforced here, not by a DB
+  // constraint (see the isDefault comment on the Plan model).
+  private async clearOtherDefaults(exceptId?: string): Promise<void> {
+    await this.prisma.plan.updateMany({
+      where: {
+        isDefault: true,
+        ...(exceptId ? { id: { not: exceptId } } : {}),
+      },
+      data: { isDefault: false },
+    });
   }
 }

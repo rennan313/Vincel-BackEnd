@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
@@ -35,4 +36,13 @@ export class CreatePlanDto {
   @IsInt()
   @Min(0)
   trialDays?: number;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'Novas empresas são automaticamente colocadas em trial neste plano ao se cadastrar.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 }

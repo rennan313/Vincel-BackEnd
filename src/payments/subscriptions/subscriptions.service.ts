@@ -43,7 +43,11 @@ export class SubscriptionsService {
     const existing = await this.prisma.subscription.findFirst({
       where: { companyId, status: { not: SubscriptionStatus.CANCELED } },
     });
-    if (existing) {
+    // A subscription with no acquirer yet is just the free signup trial
+    // (see AuthService) — checking out reuses that same row instead of
+    // creating a second one. Anything past that point (acquirer already
+    // set) is a real conflict: the company already checked out before.
+    if (existing && existing.acquirer) {
       throw new ConflictException(
         'Este escritório já tem uma assinatura em andamento.',
       );
@@ -66,19 +70,30 @@ export class SubscriptionsService {
       );
     }
 
-    // Created before calling the acquirer so its id can be sent as the
-    // external_reference — every webhook this subscription (or a charge it
-    // generates) triggers gets joined straight back to this row.
-    const subscription = await this.prisma.subscription.create({
-      data: {
-        companyId,
-        planId: plan.id,
-        acquirer: acquirerType,
-        status: SubscriptionStatus.PENDING,
-        trialEndsAt:
-          plan.trialDays > 0 ? addDays(new Date(), plan.trialDays) : null,
-      },
-    });
+    // Created (or reused from the signup trial) before calling the acquirer
+    // so its id can be sent as the external_reference — every webhook this
+    // subscription (or a charge it generates) triggers gets joined straight
+    // back to this row.
+    const subscription = existing
+      ? await this.prisma.subscription.update({
+          where: { id: existing.id },
+          data: {
+            planId: plan.id,
+            trialEndsAt:
+              plan.trialDays > 0
+                ? addDays(new Date(), plan.trialDays)
+                : existing.trialEndsAt,
+          },
+        })
+      : await this.prisma.subscription.create({
+          data: {
+            companyId,
+            planId: plan.id,
+            status: SubscriptionStatus.PENDING,
+            trialEndsAt:
+              plan.trialDays > 0 ? addDays(new Date(), plan.trialDays) : null,
+          },
+        });
 
     const result = await this.acquirers.get(acquirerType).subscribeCompany({
       externalPlanId: acquirerRef.externalPlanId,
@@ -89,6 +104,7 @@ export class SubscriptionsService {
     return this.prisma.subscription.update({
       where: { id: subscription.id },
       data: {
+        acquirer: acquirerType,
         externalSubscriptionId: result.externalSubscriptionId,
         checkoutUrl: result.checkoutUrl,
         status: result.status,
@@ -115,7 +131,7 @@ export class SubscriptionsService {
       return subscription;
     }
 
-    if (subscription.externalSubscriptionId) {
+    if (subscription.externalSubscriptionId && subscription.acquirer) {
       await this.acquirers
         .get(subscription.acquirer)
         .cancelSubscription(subscription.externalSubscriptionId);
@@ -141,7 +157,10 @@ export class SubscriptionsService {
     const subscription = await this.prisma.subscription.findUnique({
       where: { id: event.externalReference },
     });
-    if (!subscription) return;
+    // No acquirer means it's still just the local signup trial — the
+    // acquirer can't have sent a webhook about a subscription it doesn't
+    // know exists yet.
+    if (!subscription || !subscription.acquirer) return;
 
     if (event.kind === 'subscription-status') {
       const status = resolveTrialAwareStatus(

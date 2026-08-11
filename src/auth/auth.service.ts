@@ -4,8 +4,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { UserRole, type User } from '@prisma/client';
+import {
+  SubscriptionStatus,
+  UserRole,
+  type Prisma,
+  type User,
+} from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import type { Profile } from 'passport-google-oauth20';
 import { PrismaService } from '../prisma/prisma.service';
@@ -32,6 +38,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly config: ConfigService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -67,6 +74,7 @@ export class AuthService {
           companyId: company.id,
         },
       });
+      await this.startTrialSubscription(tx, company.id);
       return { user, company };
     });
 
@@ -155,7 +163,7 @@ export class AuthService {
           documentType: dto.companyDocumentType,
         },
       });
-      return tx.user.create({
+      const user = await tx.user.create({
         data: {
           name: pending.name,
           email: pending.email,
@@ -164,6 +172,8 @@ export class AuthService {
           companyId: company.id,
         },
       });
+      await this.startTrialSubscription(tx, company.id);
+      return user;
     });
 
     return {
@@ -214,5 +224,38 @@ export class AuthService {
       role: user.role,
       companyId: user.companyId,
     };
+  }
+
+  /**
+   * Every new company starts on a free trial of the default plan — no
+   * acquirer involved yet (see the Subscription.acquirer comment). A no-op
+   * if no plan is marked isDefault, so signup never fails over billing not
+   * being configured yet.
+   */
+  private async startTrialSubscription(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+  ): Promise<void> {
+    const defaultPlan = await tx.plan.findFirst({
+      where: { isDefault: true, active: true, deletedAt: null },
+    });
+    if (!defaultPlan) return;
+
+    // ConfigService doesn't cast env values — they're always strings, so
+    // this must be parsed explicitly or `getDate() + trialDays` silently
+    // string-concatenates instead of adding.
+    const trialDays =
+      Number(this.config.get<string>('SIGNUP_TRIAL_DAYS')) || 30;
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
+
+    await tx.subscription.create({
+      data: {
+        companyId,
+        planId: defaultPlan.id,
+        status: SubscriptionStatus.TRIALING,
+        trialEndsAt,
+      },
+    });
   }
 }

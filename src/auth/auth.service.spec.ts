@@ -41,6 +41,10 @@ function buildProfile(
   } as unknown as import('passport-google-oauth20').Profile;
 }
 
+function buildConfig(values: Record<string, string> = {}) {
+  return { get: jest.fn((key: string) => values[key]) };
+}
+
 function buildJwt() {
   // Mimics @nestjs/jwt closely enough for these tests: sign returns an
   // opaque token embedding the payload, verify decodes it back out.
@@ -62,7 +66,11 @@ describe('AuthService.loginOrRegisterWithGoogle', () => {
   beforeEach(() => {
     prisma = buildPrismaMock();
     const jwt = buildJwt();
-    service = new AuthService(prisma as unknown as PrismaService, jwt as never);
+    service = new AuthService(
+      prisma as unknown as PrismaService,
+      jwt as never,
+      buildConfig() as never,
+    );
   });
 
   it('logs an existing (googleId-linked) user in', async () => {
@@ -127,7 +135,11 @@ describe('AuthService.completeGoogleRegistration', () => {
   beforeEach(() => {
     prisma = buildPrismaMock();
     jwt = buildJwt();
-    service = new AuthService(prisma as unknown as PrismaService, jwt as never);
+    service = new AuthService(
+      prisma as unknown as PrismaService,
+      jwt as never,
+      buildConfig() as never,
+    );
   });
 
   async function pendingTokenFor(profile = buildProfile()) {
@@ -199,6 +211,8 @@ describe('AuthService.completeGoogleRegistration', () => {
               companyId: 'company-2',
             }),
           },
+          // No default plan configured — startTrialSubscription should be a no-op.
+          plan: { findFirst: jest.fn().mockResolvedValue(null) },
         }),
     );
 
@@ -211,5 +225,52 @@ describe('AuthService.completeGoogleRegistration', () => {
     expect(result.accessToken).toBeTruthy();
     expect(result.user.email).toBe('ana@escritorio.com.br');
     expect(prisma.$transaction).toHaveBeenCalled();
+  });
+
+  it('starts a TRIALING subscription on the default plan when one is configured', async () => {
+    const pendingToken = await pendingTokenFor();
+    prisma.user.findFirst.mockResolvedValueOnce(null);
+    prisma.company.findUnique.mockResolvedValue(null);
+    const subscriptionCreate = jest.fn().mockResolvedValue({});
+    prisma.$transaction.mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          company: {
+            create: jest.fn().mockResolvedValue({
+              id: 'company-3',
+              name: 'Ana Beatriz Ferreira',
+            }),
+          },
+          user: {
+            create: jest.fn().mockResolvedValue({
+              id: 'user-3',
+              name: 'Ana Beatriz Ferreira',
+              email: 'ana@escritorio.com.br',
+              role: UserRole.ADMIN,
+              companyId: 'company-3',
+            }),
+          },
+          plan: {
+            findFirst: jest
+              .fn()
+              .mockResolvedValue({ id: 'plan-solo', isDefault: true }),
+          },
+          subscription: { create: subscriptionCreate },
+        }),
+    );
+
+    await service.completeGoogleRegistration({
+      pendingToken,
+      companyDocument: '44.444.444/0001-44',
+      companyDocumentType: 'CNPJ',
+    });
+
+    expect(subscriptionCreate).toHaveBeenCalledTimes(1);
+    const [{ data }] = subscriptionCreate.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+    expect(data.companyId).toBe('company-3');
+    expect(data.planId).toBe('plan-solo');
+    expect(data.status).toBe('TRIALING');
   });
 });

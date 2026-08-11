@@ -48,6 +48,36 @@ const MOST_USED_COMPONENTS = [
   'Escritório',
 ];
 
+// Subscription tiers. "Solo" is isDefault: true — every new company is
+// auto-trialed into it at signup (see AuthService.startTrialSubscription).
+// Not synced to any acquirer here — that only happens via PlansService,
+// once an acquirer is actually enabled.
+const PLANS = [
+  {
+    name: 'Solo',
+    description: 'Para arquitetos autônomos administrando poucos projetos.',
+    price: 149.9,
+    trialDays: 0,
+    isDefault: true,
+  },
+  {
+    name: 'Escritório',
+    description:
+      'Para escritórios pequenos e médios com múltiplos projetos ativos.',
+    price: 349.9,
+    trialDays: 0,
+    isDefault: false,
+  },
+  {
+    name: 'Studio',
+    description:
+      'Para escritórios maiores com várias equipes e alto volume de projetos.',
+    price: 699.9,
+    trialDays: 0,
+    isDefault: false,
+  },
+];
+
 // Matches COMPONENT_CATEGORIES in the same file.
 const COMPONENT_CATEGORIES = [
   {
@@ -123,6 +153,20 @@ async function main() {
     }
   }
   console.log(`Seeded ${componentCount} project components.`);
+
+  for (const plan of PLANS) {
+    await prisma.plan.upsert({
+      where: { name: plan.name },
+      update: {
+        description: plan.description,
+        price: plan.price,
+        trialDays: plan.trialDays,
+        isDefault: plan.isDefault,
+      },
+      create: { ...plan, deletedAt: null },
+    });
+  }
+  console.log(`Seeded ${PLANS.length} plans.`);
 }
 
 main()
