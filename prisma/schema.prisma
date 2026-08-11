@@ -33,8 +33,9 @@ model Company {
   updatedAt    DateTime            @updatedAt
   deletedAt    DateTime?
 
-  users   User[]
-  clients Client[]
+  users    User[]
+  clients  Client[]
+  projects Project[]
 }
 
 enum ClientType {
@@ -66,6 +67,35 @@ model Client {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   deletedAt DateTime?
+
+  projects Project[]
+
+  @@index([companyId])
+}
+
+enum ProjectStatus {
+  in_progress
+  completed
+  paused
+  canceled
+}
+
+model Project {
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  type       String
+  status     ProjectStatus @default(in_progress)
+  // Set when linked to a Client record; the name is always denormalized
+  // here so search/listing works even for a free-typed (unlinked) client.
+  clientId   String?       @db.ObjectId
+  client     Client?       @relation(fields: [clientId], references: [id])
+  clientName String
+  active     Boolean       @default(true)
+  companyId  String        @db.ObjectId
+  company    Company       @relation(fields: [companyId], references: [id])
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  deletedAt  DateTime?
 
   @@index([companyId])
 }

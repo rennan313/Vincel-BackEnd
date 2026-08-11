@@ -1,0 +1,111 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, UserRole, type Project } from '@prisma/client';
+import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { resolveCompanyId } from '../common/company-scope';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateProjectDto } from './dto/create-project.dto';
+import { ListProjectsDto } from './dto/list-projects.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
+
+@Injectable()
+export class ProjectsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async list(currentUser: AuthenticatedUser, query: ListProjectsDto) {
+    const companyId = resolveCompanyId(currentUser, query.companyId);
+    const where: Prisma.ProjectWhereInput = {
+      companyId,
+      deletedAt: null,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { clientName: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.project.findMany({
+        where,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.project.count({ where }),
+    ]);
+
+    return { data, total, page: query.page, pageSize: query.pageSize };
+  }
+
+  async findOne(currentUser: AuthenticatedUser, id: string) {
+    return this.findScoped(currentUser, id);
+  }
+
+  async create(currentUser: AuthenticatedUser, dto: CreateProjectDto) {
+    const companyId = resolveCompanyId(currentUser, dto.companyId);
+
+    return this.prisma.project.create({
+      data: {
+        name: dto.name,
+        type: dto.type,
+        status: dto.status,
+        clientId: dto.clientId,
+        clientName: dto.clientName,
+        companyId,
+        deletedAt: null,
+      },
+    });
+  }
+
+  async update(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: UpdateProjectDto,
+  ) {
+    await this.findScoped(currentUser, id);
+
+    return this.prisma.project.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        type: dto.type,
+        status: dto.status,
+        clientId: dto.clientId,
+        clientName: dto.clientName,
+      },
+    });
+  }
+
+  async setActive(currentUser: AuthenticatedUser, id: string, active: boolean) {
+    await this.findScoped(currentUser, id);
+    return this.prisma.project.update({ where: { id }, data: { active } });
+  }
+
+  async remove(currentUser: AuthenticatedUser, id: string) {
+    await this.findScoped(currentUser, id);
+    return this.prisma.project.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  private async findScoped(
+    currentUser: AuthenticatedUser,
+    id: string,
+  ): Promise<Project> {
+    const project = await this.prisma.project.findUnique({ where: { id } });
+    if (!project || project.deletedAt) {
+      throw new NotFoundException('Projeto não encontrado.');
+    }
+    if (
+      currentUser.role !== UserRole.VINCEL_ADMIN &&
+      project.companyId !== currentUser.companyId
+    ) {
+      throw new NotFoundException('Projeto não encontrado.');
+    }
+    return project;
+  }
+}
