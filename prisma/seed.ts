@@ -34,6 +34,57 @@ const SERVICES = [
   'Outro',
 ];
 
+// Matches MOST_USED_COMPONENTS in componentCatalog.ts.
+const MOST_USED_COMPONENTS = [
+  'Área estimada',
+  'Área construída',
+  'Nº pavimentos',
+  'Vagas',
+  'Quartos',
+  'Suítes',
+  'Banheiros',
+  'Piscina',
+  'Área gourmet',
+  'Escritório',
+];
+
+// Matches COMPONENT_CATEGORIES in the same file.
+const COMPONENT_CATEGORIES = [
+  {
+    label: 'Características do imóvel',
+    items: [
+      'Sala de estar',
+      'Sala de jantar',
+      'Cozinha',
+      'Lavanderia',
+      'Closet',
+      'Varanda',
+      'Home theater',
+    ],
+  },
+  {
+    label: 'Infraestrutura',
+    items: [
+      'Gerador',
+      'Cisterna',
+      'Painel solar',
+      'Elevador',
+      'Automação residencial',
+      'Sistema de segurança',
+    ],
+  },
+  {
+    label: 'Acabamentos',
+    items: [
+      'Piso porcelanato',
+      'Piso laminado',
+      'Forro de gesso',
+      'Iluminação especial',
+      'Marcenaria planejada',
+    ],
+  },
+];
+
 async function main() {
   for (const projectType of PROJECT_TYPES) {
     await prisma.projectType.upsert({
@@ -52,6 +103,26 @@ async function main() {
     });
   }
   console.log(`Seeded ${SERVICES.length} services.`);
+
+  for (const name of MOST_USED_COMPONENTS) {
+    await prisma.projectComponent.upsert({
+      where: { name },
+      update: { mostUsed: true },
+      create: { name, mostUsed: true, deletedAt: null },
+    });
+  }
+  let componentCount = MOST_USED_COMPONENTS.length;
+  for (const category of COMPONENT_CATEGORIES) {
+    for (const name of category.items) {
+      await prisma.projectComponent.upsert({
+        where: { name },
+        update: { category: category.label },
+        create: { name, category: category.label, deletedAt: null },
+      });
+      componentCount += 1;
+    }
+  }
+  console.log(`Seeded ${componentCount} project components.`);
 }
 
 main()

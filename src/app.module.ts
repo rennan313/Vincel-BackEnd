@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
+import { ProjectComponentsModule } from './project-components/project-components.module';
 import { ProjectTypesModule } from './project-types/project-types.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ServicesModule } from './services/services.module';
@@ -20,6 +21,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     ClientsModule,
     ProjectTypesModule,
+    ProjectComponentsModule,
     ProjectsModule,
     ServicesModule,
     SuppliersModule,
