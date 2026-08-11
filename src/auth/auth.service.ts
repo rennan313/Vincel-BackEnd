@@ -5,18 +5,27 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { CompanyDocumentType, UserRole, type User } from '@prisma/client';
+import { UserRole, type User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import type { Profile } from 'passport-google-oauth20';
 import { PrismaService } from '../prisma/prisma.service';
+import { CompleteGoogleRegistrationDto } from './dto/complete-google-registration.dto';
 import { RegisterDto } from './dto/register.dto';
 
 const SALT_ROUNDS = 10;
+const GOOGLE_PENDING_PURPOSE = 'google-register-pending';
+const GOOGLE_PENDING_EXPIRES_IN = '10m';
 
-interface GoogleRegisterState {
-  companyDocument: string;
-  companyDocumentType: CompanyDocumentType;
+interface GooglePendingPayload {
+  purpose: typeof GOOGLE_PENDING_PURPOSE;
+  googleId: string;
+  email: string;
+  name: string;
 }
+
+export type GoogleAuthResult =
+  | { status: 'authenticated'; accessToken: string }
+  | { status: 'pending'; pendingToken: string; name: string; email: string };
 
 @Injectable()
 export class AuthService {
@@ -74,12 +83,13 @@ export class AuthService {
   }
 
   /**
-   * `stateRaw` carries the company document/type collected on the register
-   * form before the browser was redirected to Google — base64 JSON, set by
-   * the front. Only needed for brand-new accounts; an existing user just
-   * logs in.
+   * Called right after Google auth succeeds. An existing account (matched by
+   * googleId or e-mail) just logs in. A brand-new signup can't be finished
+   * yet — we don't have the company document — so it gets a short-lived
+   * "pending" token carrying the Google profile, and the front shows a
+   * lightweight follow-up step asking only for that.
    */
-  async loginOrRegisterWithGoogle(profile: Profile, stateRaw?: string) {
+  async loginOrRegisterWithGoogle(profile: Profile): Promise<GoogleAuthResult> {
     const googleId = profile.id;
     const email = profile.emails?.[0]?.value;
     if (!email) {
@@ -93,44 +103,73 @@ export class AuthService {
       where: { OR: [{ googleId }, { email }] },
     });
 
-    if (user) {
-      if (!user.googleId) {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: { googleId },
-        });
-      }
-    } else {
-      const state = this.parseGoogleState(stateRaw);
+    if (!user) {
+      const pendingToken = await this.jwt.signAsync(
+        {
+          purpose: GOOGLE_PENDING_PURPOSE,
+          googleId,
+          email,
+          name,
+        } satisfies GooglePendingPayload,
+        { expiresIn: GOOGLE_PENDING_EXPIRES_IN },
+      );
+      return { status: 'pending', pendingToken, name, email };
+    }
 
-      const existingDocument = await this.prisma.company.findUnique({
-        where: { document: state.companyDocument },
-      });
-      if (existingDocument) {
-        throw new ConflictException('Este CNPJ/CPF já está cadastrado.');
-      }
-
-      user = await this.prisma.$transaction(async (tx) => {
-        const company = await tx.company.create({
-          data: {
-            name,
-            document: state.companyDocument,
-            documentType: state.companyDocumentType,
-          },
-        });
-        return tx.user.create({
-          data: {
-            name,
-            email,
-            googleId,
-            role: UserRole.ADMIN,
-            companyId: company.id,
-          },
-        });
+    if (!user.googleId) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { googleId },
       });
     }
 
-    return { accessToken: await this.signToken(user) };
+    return { status: 'authenticated', accessToken: await this.signToken(user) };
+  }
+
+  /** Finishes a brand-new Google signup once the company document is known. */
+  async completeGoogleRegistration(dto: CompleteGoogleRegistrationDto) {
+    const pending = await this.verifyGooglePendingToken(dto.pendingToken);
+
+    const [existingEmail, existingDocument] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: {
+          OR: [{ googleId: pending.googleId }, { email: pending.email }],
+        },
+      }),
+      this.prisma.company.findUnique({
+        where: { document: dto.companyDocument },
+      }),
+    ]);
+    if (existingEmail) {
+      throw new ConflictException('Esta conta Google já está cadastrada.');
+    }
+    if (existingDocument) {
+      throw new ConflictException('Este CNPJ/CPF já está cadastrado.');
+    }
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const company = await tx.company.create({
+        data: {
+          name: pending.name,
+          document: dto.companyDocument,
+          documentType: dto.companyDocumentType,
+        },
+      });
+      return tx.user.create({
+        data: {
+          name: pending.name,
+          email: pending.email,
+          googleId: pending.googleId,
+          role: UserRole.ADMIN,
+          companyId: company.id,
+        },
+      });
+    });
+
+    return {
+      accessToken: await this.signToken(user),
+      user: this.toSafeUser(user),
+    };
   }
 
   async me(userId: string) {
@@ -141,29 +180,21 @@ export class AuthService {
     return this.toSafeUser(user);
   }
 
-  private parseGoogleState(stateRaw?: string): GoogleRegisterState {
-    if (!stateRaw) {
-      throw new BadRequestException(
-        'Informe o tipo e o documento do escritório antes de continuar com Google.',
-      );
-    }
-
-    let parsed: Partial<GoogleRegisterState>;
+  private async verifyGooglePendingToken(
+    pendingToken: string,
+  ): Promise<GooglePendingPayload> {
+    let payload: GooglePendingPayload;
     try {
-      parsed = JSON.parse(
-        Buffer.from(stateRaw, 'base64').toString('utf8'),
-      ) as Partial<GoogleRegisterState>;
+      payload = await this.jwt.verifyAsync<GooglePendingPayload>(pendingToken);
     } catch {
-      throw new BadRequestException('Estado inválido.');
-    }
-
-    if (!parsed.companyDocument || !parsed.companyDocumentType) {
       throw new BadRequestException(
-        'Informe o tipo e o documento do escritório antes de continuar com Google.',
+        'Sessão do Google expirada. Tente novamente.',
       );
     }
-
-    return parsed as GoogleRegisterState;
+    if (payload.purpose !== GOOGLE_PENDING_PURPOSE) {
+      throw new BadRequestException('Token inválido.');
+    }
+    return payload;
   }
 
   private signToken(user: User): Promise<string> {

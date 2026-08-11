@@ -21,8 +21,8 @@ import type { Request, Response } from 'express';
 import type { Profile } from 'passport-google-oauth20';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { CompleteGoogleRegistrationDto } from './dto/complete-google-registration.dto';
 import { RegisterDto } from './dto/register.dto';
-import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { AuthenticatedUser } from './strategies/jwt.strategy';
 
@@ -49,6 +49,20 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Post('google/complete')
+  @ApiOperation({
+    summary:
+      'Finaliza um cadastro novo via Google, informando o documento do escritório.',
+  })
+  @ApiResponse({ status: 201, description: 'Conta criada.' })
+  @ApiResponse({
+    status: 409,
+    description: 'CNPJ/CPF já cadastrado ou conta já existente.',
+  })
+  completeGoogleRegistration(@Body() dto: CompleteGoogleRegistrationDto) {
+    return this.authService.completeGoogleRegistration(dto);
+  }
+
   @Get('me')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
@@ -58,13 +72,10 @@ export class AuthController {
   }
 
   @Get('google')
-  @UseGuards(GoogleAuthGuard)
-  @ApiOperation({
-    summary:
-      'Inicia o login/cadastro com Google. Para cadastro, passe ?state= com o companyDocument/companyDocumentType em base64 JSON.',
-  })
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Inicia o login/cadastro com Google.' })
   googleAuth() {
-    // GoogleAuthGuard redirects to Google's consent screen — never reaches here.
+    // AuthGuard('google') redirects to Google's consent screen — never reaches here.
   }
 
   @Get('google/callback')
@@ -74,19 +85,25 @@ export class AuthController {
       'FRONTEND_URL',
       'http://localhost:5173',
     );
-    const state =
-      typeof req.query.state === 'string' ? req.query.state : undefined;
 
     try {
-      const { accessToken } = await this.authService.loginOrRegisterWithGoogle(
+      const result = await this.authService.loginOrRegisterWithGoogle(
         req.user as Profile,
-        state,
       );
-      const redirectUrl = new URL('/auth/callback', frontendUrl);
-      redirectUrl.searchParams.set('token', accessToken);
+
+      if (result.status === 'authenticated') {
+        const redirectUrl = new URL('/auth/callback', frontendUrl);
+        redirectUrl.searchParams.set('token', result.accessToken);
+        return res.redirect(redirectUrl.toString());
+      }
+
+      const redirectUrl = new URL('/register/complete', frontendUrl);
+      redirectUrl.searchParams.set('pendingToken', result.pendingToken);
+      redirectUrl.searchParams.set('name', result.name);
+      redirectUrl.searchParams.set('email', result.email);
       return res.redirect(redirectUrl.toString());
     } catch (error) {
-      const redirectUrl = new URL('/register', frontendUrl);
+      const redirectUrl = new URL('/', frontendUrl);
       redirectUrl.searchParams.set(
         'googleError',
         error instanceof Error
