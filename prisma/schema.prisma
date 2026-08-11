@@ -100,7 +100,7 @@ type PlanningPhase {
   estimatedDays Int
 }
 
-/** How honorários is calculated — per_sqm (rate × área) or per_hour (rate × estimatedHours). */
+// How honorários is calculated — per_sqm (rate × área) or per_hour (rate × estimatedHours).
 enum FeeModel {
   per_sqm
   per_hour
@@ -131,9 +131,9 @@ type ProjectAddress {
 }
 
 model Project {
-  id     String        @id @default(auto()) @map("_id") @db.ObjectId
-  name   String
-  type   String
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  type       String
   // Free-text description, only meaningful when type is the "outro" catalog entry.
   customType String?
   areaSqm    Float?
@@ -156,23 +156,23 @@ model Project {
   feeModel           FeeModel?
   feeRate            Float?
   // Only meaningful when feeModel is per_hour.
-  estimatedHours Float?
+  estimatedHours     Float?
   // Derived on the front from feeRate × área (per_sqm) or feeRate × estimatedHours (per_hour).
-  feeAmount     Float?
-  paymentMethod PaymentMethod?
-  installments  ProjectInstallment[]
+  feeAmount          Float?
+  paymentMethod      PaymentMethod?
+  installments       ProjectInstallment[]
 
   startDate DateTime?
   endDate   DateTime?
 
   address ProjectAddress?
 
-  active     Boolean   @default(true)
-  companyId  String    @db.ObjectId
-  company    Company   @relation(fields: [companyId], references: [id])
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
+  active    Boolean   @default(true)
+  companyId String    @db.ObjectId
+  company   Company   @relation(fields: [companyId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([companyId])
 }

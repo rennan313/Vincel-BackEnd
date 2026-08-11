@@ -33,6 +33,7 @@ export class UsersService {
     const companyId = resolveCompanyId(currentUser, query.companyId);
     const where: Prisma.UserWhereInput = {
       companyId,
+      ...(query.role ? { role: query.role } : {}),
       ...(query.search
         ? {
             OR: [

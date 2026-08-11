@@ -1,6 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  IsIn,
   IsInt,
   IsMongoId,
   IsOptional,
@@ -8,6 +10,13 @@ import {
   Max,
   Min,
 } from 'class-validator';
+
+const FILTERABLE_ROLES = [
+  UserRole.ADMIN,
+  UserRole.ARCHITECT,
+  UserRole.FINANCE,
+  UserRole.CUSTOMER,
+] as const;
 
 export class ListUsersDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -37,4 +46,12 @@ export class ListUsersDto {
   @IsOptional()
   @IsMongoId()
   companyId?: string;
+
+  @ApiPropertyOptional({
+    enum: FILTERABLE_ROLES,
+    description: 'Filtra por perfil.',
+  })
+  @IsOptional()
+  @IsIn(FILTERABLE_ROLES, { message: 'Perfil inválido.' })
+  role?: (typeof FILTERABLE_ROLES)[number];
 }

@@ -19,10 +19,11 @@ import { ListProjectTypesDto } from './dto/list-project-types.dto';
 import { UpdateProjectTypeDto } from './dto/update-project-type.dto';
 import { ProjectTypesService } from './project-types.service';
 
+// GET is open to any authenticated user — the project-creation wizard reads
+// this catalog. Every mutation stays VINCEL_ADMIN-only (the admin dashboard).
 @ApiTags('project-types')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.VINCEL_ADMIN)
+@UseGuards(JwtAuthGuard)
 @Controller('project-types')
 export class ProjectTypesController {
   constructor(private readonly projectTypesService: ProjectTypesService) {}
@@ -36,30 +37,40 @@ export class ProjectTypesController {
   }
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Cria um tipo de projeto.' })
   create(@Body() dto: CreateProjectTypeDto) {
     return this.projectTypesService.create(dto);
   }
 
   @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Edita um tipo de projeto.' })
   update(@Param('id') id: string, @Body() dto: UpdateProjectTypeDto) {
     return this.projectTypesService.update(id, dto);
   }
 
   @Patch(':id/activate')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Reativa um tipo de projeto.' })
   activate(@Param('id') id: string) {
     return this.projectTypesService.setActive(id, true);
   }
 
   @Patch(':id/deactivate')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Desativa um tipo de projeto.' })
   deactivate(@Param('id') id: string) {
     return this.projectTypesService.setActive(id, false);
   }
 
   @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Remove (soft delete) um tipo de projeto.' })
   remove(@Param('id') id: string) {
     return this.projectTypesService.remove(id);
