@@ -15,29 +15,39 @@ enum UserRole {
   CUSTOMER
 }
 
+enum CompanyDocumentType {
+  CNPJ
+  CPF
+}
+
 // A "company" is a tenant (escritório). Every tenant-owned record carries a
 // companyId; shared reference data (project types, services, materials...)
 // does not and stays global across tenants.
 model Company {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  document  String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id           String              @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  document     String              @unique
+  documentType CompanyDocumentType
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  deletedAt    DateTime?
 
   users User[]
 }
 
 model User {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  email     String    @unique
-  role      UserRole
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  email        String    @unique
+  // Absent for accounts created via an OAuth provider (e.g. Google).
+  passwordHash String?
+  // Set for accounts created/linked via Google OAuth.
+  googleId     String?   @unique
+  role         UserRole
   // Required for every role except VINCEL_ADMIN, enforced at the application layer.
-  companyId String?   @db.ObjectId
-  company   Company?  @relation(fields: [companyId], references: [id])
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  companyId    String?   @db.ObjectId
+  company      Company?  @relation(fields: [companyId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 }
