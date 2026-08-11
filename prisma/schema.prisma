@@ -41,9 +41,13 @@ model User {
   email        String    @unique
   // Absent for accounts created via an OAuth provider (e.g. Google).
   passwordHash String?
-  // Set for accounts created/linked via Google OAuth.
-  googleId     String?   @unique
+  // Set for accounts created/linked via Google OAuth. Not @unique here:
+  // MongoDB's unique index isn't sparse for Prisma-written nulls, so two
+  // password-based users (both with no googleId) would collide. Uniqueness
+  // is enforced at the application layer once the Google OAuth flow exists.
+  googleId     String?
   role         UserRole
+  active       Boolean   @default(true)
   // Required for every role except VINCEL_ADMIN, enforced at the application layer.
   companyId    String?   @db.ObjectId
   company      Company?  @relation(fields: [companyId], references: [id])

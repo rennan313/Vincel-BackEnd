@@ -18,6 +18,7 @@ async function bootstrap() {
     .setTitle('Vincel API')
     .setDescription('Backend da Vincel Studio')
     .setVersion('0.1.0')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
