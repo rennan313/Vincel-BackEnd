@@ -70,6 +70,28 @@ model Client {
   @@index([companyId])
 }
 
+// Shared reference data: no companyId, managed only by VINCEL_ADMIN via the
+// admin dashboard, read by every company's project-creation flow.
+model ProjectType {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  // lucide-react icon name (see src/components/ui/icons.ts on the front).
+  icon      String
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model Service {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
 model User {
   id           String    @id @default(auto()) @map("_id") @db.ObjectId
   name         String
