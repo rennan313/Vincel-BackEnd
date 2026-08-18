@@ -131,6 +131,42 @@ type ProjectAddress {
   state        String?
 }
 
+// Fixed set of common AEC service-provider roles — OUTRO is the escape
+// hatch for anything not on the list, paired with ProjectTeamMember.customRole.
+enum ProviderRole {
+  ARQUITETO_COLABORADOR
+  ENGENHEIRO_ESTRUTURAL
+  ENGENHEIRO_ELETRICO
+  ENGENHEIRO_HIDRAULICO
+  MESTRE_OBRAS
+  EMPREITEIRO
+  PEDREIRO
+  ELETRICISTA
+  ENCANADOR
+  MARCENEIRO
+  SERRALHEIRO
+  VIDRACEIRO
+  PINTOR
+  GESSEIRO
+  PAISAGISTA
+  DECORADOR
+  OUTRO
+}
+
+// A service provider (prestador de serviço) working on a project — not a
+// User account, just a contact record embedded on the Project itself.
+type ProjectTeamMember {
+  id         String
+  name       String
+  role       ProviderRole
+  // Only meaningful when role is OUTRO.
+  customRole String?
+  phone      String?
+  email      String?
+  company    String?
+  document   String?
+}
+
 model Project {
   id         String        @id @default(auto()) @map("_id") @db.ObjectId
   name       String
@@ -162,6 +198,8 @@ model Project {
   feeAmount          Float?
   paymentMethod      PaymentMethod?
   installments       ProjectInstallment[]
+
+  teamMembers ProjectTeamMember[]
 
   startDate DateTime?
   endDate   DateTime?
