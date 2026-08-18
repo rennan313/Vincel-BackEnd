@@ -23,7 +23,6 @@ import { PlanningPhaseDto } from './planning-phase.dto';
 import { ProjectAddressDto } from './project-address.dto';
 import { ProjectComponentDto } from './project-component.dto';
 import { ProjectInstallmentDto } from './project-installment.dto';
-import { ProjectTeamMemberDto } from './project-team-member.dto';
 
 export class CreateProjectDto {
   @ApiProperty({ example: 'Residência Alto da Serra' })
@@ -146,13 +145,6 @@ export class CreateProjectDto {
   @ValidateNested({ each: true })
   @Type(() => ProjectInstallmentDto)
   installments?: ProjectInstallmentDto[];
-
-  @ApiPropertyOptional({ type: [ProjectTeamMemberDto] })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProjectTeamMemberDto)
-  teamMembers?: ProjectTeamMemberDto[];
 
   @ApiPropertyOptional({ description: 'Data ISO (yyyy-mm-dd).' })
   @IsOptional()

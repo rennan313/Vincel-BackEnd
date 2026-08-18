@@ -41,7 +41,20 @@ export class ProjectsService {
   }
 
   async findOne(currentUser: AuthenticatedUser, id: string) {
-    return this.findScoped(currentUser, id);
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      include: { providerLinks: { include: { provider: true } } },
+    });
+    if (!project || project.deletedAt) {
+      throw new NotFoundException('Projeto não encontrado.');
+    }
+    if (
+      currentUser.role !== UserRole.VINCEL_ADMIN &&
+      project.companyId !== currentUser.companyId
+    ) {
+      throw new NotFoundException('Projeto não encontrado.');
+    }
+    return project;
   }
 
   async create(currentUser: AuthenticatedUser, dto: CreateProjectDto) {
@@ -68,7 +81,6 @@ export class ProjectsService {
         feeAmount: dto.feeAmount,
         paymentMethod: dto.paymentMethod,
         installments: dto.installments,
-        teamMembers: dto.teamMembers,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
         address: dto.address,
@@ -107,7 +119,6 @@ export class ProjectsService {
         feeAmount: dto.feeAmount,
         paymentMethod: dto.paymentMethod,
         installments: dto.installments,
-        teamMembers: dto.teamMembers,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
         address: dto.address,

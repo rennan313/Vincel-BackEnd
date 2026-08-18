@@ -8,8 +8,10 @@ import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
 import { ProjectComponentsModule } from './project-components/project-components.module';
+import { ProjectProvidersModule } from './project-providers/project-providers.module';
 import { ProjectTypesModule } from './project-types/project-types.module';
 import { ProjectsModule } from './projects/projects.module';
+import { ProvidersModule } from './providers/providers.module';
 import { ServicesModule } from './services/services.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { UsersModule } from './users/users.module';
@@ -24,6 +26,8 @@ import { UsersModule } from './users/users.module';
     ProjectTypesModule,
     ProjectComponentsModule,
     ProjectsModule,
+    ProvidersModule,
+    ProjectProvidersModule,
     ServicesModule,
     SuppliersModule,
     ProductsModule,

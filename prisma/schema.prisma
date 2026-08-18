@@ -36,6 +36,7 @@ model Company {
   users         User[]
   clients       Client[]
   projects      Project[]
+  providers     Provider[]
   subscriptions Subscription[]
 }
 
@@ -163,22 +164,56 @@ enum ProviderStatus {
   CANCELADO
 }
 
-// A service provider (prestador de serviço) working on a project — not a
-// User account, just a contact record embedded on the Project itself.
-type ProjectTeamMember {
-  id     String
-  name   String
-  role   ProviderRole
+// A service provider (prestador de serviço) — a company-wide contact the
+// office reuses across projects, not a one-off snapshot. Not a User
+// account; providers never log in, they're just tracked contacts.
+model Provider {
+  id         String       @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  role       ProviderRole
   // Only meaningful when role is OUTRO.
-  customRole String?
+  customRole  String?
+  phone       String?
+  email       String?
+  // Razão social — named to avoid clashing with the `company` tenant relation below.
+  companyName String?
+  document    String?
+  // General status for this provider — same enum/UI as ProjectProvider.status,
+  // shown on the standalone Prestadores page. Independent per-project status
+  // still lives on ProjectProvider.
+  status      ProviderStatus @default(A_CONTRATAR)
+  active      Boolean      @default(true)
+  companyId   String       @db.ObjectId
+  company     Company      @relation(fields: [companyId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  projectLinks ProjectProvider[]
+
+  @@index([companyId])
+}
+
+// Join record — a provider's participation on one specific project. Kept
+// separate from Provider itself because status/responsibility only make
+// sense per-project; the same provider can have a different status on
+// each project they're linked to.
+model ProjectProvider {
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  projectId      String         @db.ObjectId
+  project        Project        @relation(fields: [projectId], references: [id])
+  providerId     String         @db.ObjectId
+  provider       Provider       @relation(fields: [providerId], references: [id])
   // Free-text description of what this provider is responsible for on
-  // THIS project — distinct from `role`, which is just their general trade.
+  // THIS project — distinct from Provider.role, which is their general trade.
   responsibility String?
   status         ProviderStatus @default(A_CONTRATAR)
-  phone          String?
-  email          String?
-  company        String?
-  document       String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([projectId, providerId])
+  @@index([projectId])
+  @@index([providerId])
 }
 
 model Project {
@@ -213,7 +248,7 @@ model Project {
   paymentMethod      PaymentMethod?
   installments       ProjectInstallment[]
 
-  teamMembers ProjectTeamMember[]
+  providerLinks ProjectProvider[]
 
   startDate DateTime?
   endDate   DateTime?
