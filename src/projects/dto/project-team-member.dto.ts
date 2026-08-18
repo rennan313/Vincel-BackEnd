@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ProviderRole } from '@prisma/client';
+import { ProviderRole, ProviderStatus } from '@prisma/client';
 import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class ProjectTeamMemberDto {
@@ -23,6 +23,21 @@ export class ProjectTeamMemberDto {
   @IsOptional()
   @IsString()
   customRole?: string;
+
+  @ApiPropertyOptional({
+    description: 'O que esse prestador é responsável a fazer neste projeto.',
+  })
+  @IsOptional()
+  @IsString()
+  responsibility?: string;
+
+  @ApiPropertyOptional({
+    enum: ProviderStatus,
+    default: ProviderStatus.A_CONTRATAR,
+  })
+  @IsOptional()
+  @IsEnum(ProviderStatus, { message: 'Status inválido.' })
+  status?: ProviderStatus;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -153,18 +153,32 @@ enum ProviderRole {
   OUTRO
 }
 
+// Where a provider stands in the hiring/work lifecycle for this project.
+enum ProviderStatus {
+  A_CONTRATAR
+  CONTRATADO
+  EM_ANDAMENTO
+  PAUSADO
+  CONCLUIDO
+  CANCELADO
+}
+
 // A service provider (prestador de serviço) working on a project — not a
 // User account, just a contact record embedded on the Project itself.
 type ProjectTeamMember {
-  id         String
-  name       String
-  role       ProviderRole
+  id     String
+  name   String
+  role   ProviderRole
   // Only meaningful when role is OUTRO.
   customRole String?
-  phone      String?
-  email      String?
-  company    String?
-  document   String?
+  // Free-text description of what this provider is responsible for on
+  // THIS project — distinct from `role`, which is just their general trade.
+  responsibility String?
+  status         ProviderStatus @default(A_CONTRATAR)
+  phone          String?
+  email          String?
+  company        String?
+  document       String?
 }
 
 model Project {
