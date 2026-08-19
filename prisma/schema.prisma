@@ -82,14 +82,6 @@ enum ProjectStatus {
   canceled
 }
 
-type ProjectComponentItem {
-  id       String
-  name     String
-  quantity Int
-  areaSqm  Float?
-  note     String?
-}
-
 enum Complexity {
   LOW
   MEDIUM
@@ -233,7 +225,6 @@ model Project {
 
   services           String[]
   customServiceLabel String?
-  components         ProjectComponentItem[]
 
   planningPhases PlanningPhase[]
   complexity     Complexity?
@@ -281,23 +272,6 @@ model ProjectType {
 model Service {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   name      String    @unique
-  active    Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-}
-
-// Shared reference data, same pattern as ProjectType/Service — the catalog
-// behind the wizard's Escopo step component picker. Not to be confused with
-// ProjectComponentItem (the embedded snapshot a Project actually stores once
-// a component from this catalog, or a free-typed one, is added to it).
-model ProjectComponent {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  name      String    @unique
-  // Display group label (e.g. "Características do imóvel"). Absent for
-  // items shown in the "mais usados" quick-pick row instead of a category.
-  category  String?
-  mostUsed  Boolean   @default(false)
   active    Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

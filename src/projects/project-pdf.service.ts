@@ -100,15 +100,6 @@ export class ProjectPdfService {
       serviceLines.push(project.customServiceLabel);
     if (serviceLines.length > 0) this.section(doc, 'Serviços', serviceLines);
 
-    const componentLines = project.components.map((component) => {
-      const parts = [component.name, `${component.quantity}x`];
-      if (component.areaSqm != null) parts.push(`${component.areaSqm} m²`);
-      if (component.note) parts.push(component.note);
-      return parts.join(' — ');
-    });
-    if (componentLines.length > 0)
-      this.section(doc, 'Componentes', componentLines);
-
     const planningLines = [
       project.complexity
         ? `Complexidade: ${COMPLEXITY_LABELS[project.complexity] ?? project.complexity}`
