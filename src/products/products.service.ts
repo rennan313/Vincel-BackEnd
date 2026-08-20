@@ -48,8 +48,17 @@ export class ProductsService {
     return this.findScoped(currentUser, id);
   }
 
-  create(currentUser: AuthenticatedUser, dto: CreateProductDto) {
+  async create(currentUser: AuthenticatedUser, dto: CreateProductDto) {
     const companyId = this.resolveWriteCompanyId(currentUser, dto.companyId);
+
+    // Idempotent by (sku, companyId): a product already registered under
+    // this sku is reused instead of erroring on the unique constraint —
+    // needed so picking the same partner-catalog item twice (in this or
+    // another project) links back to one shared Product record.
+    const existing = await this.prisma.product.findFirst({
+      where: { sku: dto.sku, companyId: companyId ?? null, deletedAt: null },
+    });
+    if (existing) return existing;
 
     return this.prisma.product.create({
       data: { ...dto, companyId, deletedAt: null },
