@@ -58,7 +58,11 @@ export class ProvidersService {
     });
   }
 
-  async update(currentUser: AuthenticatedUser, id: string, dto: UpdateProviderDto) {
+  async update(
+    currentUser: AuthenticatedUser,
+    id: string,
+    dto: UpdateProviderDto,
+  ) {
     await this.findScoped(currentUser, id);
 
     return this.prisma.provider.update({

@@ -1,6 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ProviderRole, ProviderStatus } from '@prisma/client';
-import { IsEmail, IsEnum, IsMongoId, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 /**
  * Either links an already-cadastrado provider (providerId set — the search
@@ -11,7 +18,8 @@ import { IsEmail, IsEnum, IsMongoId, IsOptional, IsString, MinLength } from 'cla
  */
 export class AssignProviderDto {
   @ApiPropertyOptional({
-    description: 'Id de um prestador já cadastrado no escritório, para apenas vincular.',
+    description:
+      'Id de um prestador já cadastrado no escritório, para apenas vincular.',
   })
   @IsOptional()
   @IsMongoId()
@@ -23,7 +31,10 @@ export class AssignProviderDto {
   @MinLength(1, { message: 'Informe o nome.' })
   name?: string;
 
-  @ApiPropertyOptional({ enum: ProviderRole, example: ProviderRole.ELETRICISTA })
+  @ApiPropertyOptional({
+    enum: ProviderRole,
+    example: ProviderRole.ELETRICISTA,
+  })
   @IsOptional()
   @IsEnum(ProviderRole, { message: 'Participação inválida.' })
   role?: ProviderRole;
@@ -45,7 +56,9 @@ export class AssignProviderDto {
   @IsEmail({}, { message: 'Informe um e-mail válido.' })
   email?: string;
 
-  @ApiPropertyOptional({ description: 'Razão social, se o prestador for uma empresa.' })
+  @ApiPropertyOptional({
+    description: 'Razão social, se o prestador for uma empresa.',
+  })
   @IsOptional()
   @IsString()
   companyName?: string;

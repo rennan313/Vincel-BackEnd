@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsMongoId,
   IsOptional,
   IsNumber,
   IsString,
@@ -73,4 +74,12 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   category?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Apenas para VINCEL_ADMIN: cadastra o produto dentro de um escritório específico em vez de no catálogo global. Demais usuários sempre cadastram dentro do próprio escritório, ignorando este campo.',
+  })
+  @IsOptional()
+  @IsMongoId()
+  companyId?: string;
 }

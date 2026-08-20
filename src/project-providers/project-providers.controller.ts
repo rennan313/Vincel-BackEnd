@@ -21,7 +21,9 @@ import { ProjectProvidersService } from './project-providers.service';
 @UseGuards(JwtAuthGuard)
 @Controller('projects/:projectId/providers')
 export class ProjectProvidersController {
-  constructor(private readonly projectProvidersService: ProjectProvidersService) {}
+  constructor(
+    private readonly projectProvidersService: ProjectProvidersService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Lista os prestadores vinculados a este projeto.' })
@@ -34,8 +36,7 @@ export class ProjectProvidersController {
 
   @Post()
   @ApiOperation({
-    summary:
-      'Cadastra um prestador de serviço e já o vincula a este projeto.',
+    summary: 'Cadastra um prestador de serviço e já o vincula a este projeto.',
   })
   create(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -56,7 +57,12 @@ export class ProjectProvidersController {
     @Param('linkId') linkId: string,
     @Body() dto: UpdateProjectProviderDto,
   ) {
-    return this.projectProvidersService.update(currentUser, projectId, linkId, dto);
+    return this.projectProvidersService.update(
+      currentUser,
+      projectId,
+      linkId,
+      dto,
+    );
   }
 
   @Delete(':linkId')

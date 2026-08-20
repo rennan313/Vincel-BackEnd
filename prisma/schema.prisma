@@ -37,6 +37,7 @@ model Company {
   clients       Client[]
   projects      Project[]
   providers     Provider[]
+  products      Product[]
   subscriptions Subscription[]
 }
 
@@ -240,6 +241,7 @@ model Project {
   installments       ProjectInstallment[]
 
   providerLinks ProjectProvider[]
+  materials     ProjectMaterial[]
 
   startDate DateTime?
   endDate   DateTime?
@@ -254,6 +256,61 @@ model Project {
   deletedAt DateTime?
 
   @@index([companyId])
+}
+
+// A material's specification lifecycle on a project — A_DEFINIR (not yet
+// chosen) -> ESPECIFICADO -> APROVADO -> COMPRADO.
+enum ProjectMaterialStatus {
+  A_DEFINIR
+  ESPECIFICADO
+  APROVADO
+  COMPRADO
+}
+
+// A material specified for one project — room, status, quantity/cost and
+// the spec sheet ("ficha") shown in its detail view. Optionally linked to a
+// Product from the catalog (for provenance/reuse), but always a full
+// snapshot of its own — editing this never mutates the catalog Product.
+model ProjectMaterial {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String  @db.ObjectId
+  project   Project @relation(fields: [projectId], references: [id])
+  // Set when cadastrado a partir do catálogo de produtos; null for a
+  // free-typed material with no catalog entry.
+  productId String?  @db.ObjectId
+  product   Product? @relation(fields: [productId], references: [id])
+
+  name     String
+  category String?
+  // "Ambiente" — which room/space this material is specified for (e.g. "Suíte", "Cozinha").
+  room     String?
+  status   ProjectMaterialStatus @default(A_DEFINIR)
+
+  quantity  Float?
+  unit      String?
+  unitCost  Float?
+  // Derived on the front from unitCost × quantity, but stored since it's
+  // shown directly and can outlive an edit to either factor.
+  totalCost Float?
+  // Free text for now — not a reusable Supplier-like record.
+  supplier  String?
+
+  brand     String?
+  model     String?
+  thickness String?
+  dimension String?
+  finish    String?
+  color     String?
+
+  image        String?
+  referenceUrl String?
+  notes        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([productId])
 }
 
 // Shared reference data: no companyId, managed only by VINCEL_ADMIN via the
@@ -278,9 +335,13 @@ model Service {
   deletedAt DateTime?
 }
 
+// Null companyId = global catalog (curated by VINCEL_ADMIN, aggregated
+// from products across every client — not yet surfaced to regular users'
+// search/list, only stored). A set companyId is a product a company
+// registered itself, private to that company only.
 model Product {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  sku         String    @unique
+  sku         String
   name        String
   description String?
   // Unidade de medida, texto livre (ex: "m²", "un", "kg").
@@ -294,11 +355,17 @@ model Product {
   colors      String[]
   category    String?
   active      Boolean   @default(true)
+  companyId   String?   @db.ObjectId
+  company     Company?  @relation(fields: [companyId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  prices Price[]
+  prices           Price[]
+  projectMaterials ProjectMaterial[]
+
+  @@unique([sku, companyId])
+  @@index([companyId])
 }
 
 model Supplier {

@@ -1,6 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ProviderRole, ProviderStatus } from '@prisma/client';
-import { IsEmail, IsEnum, IsMongoId, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class CreateProviderDto {
   @ApiProperty({ example: 'Carlos Henrique' })
@@ -29,7 +36,9 @@ export class CreateProviderDto {
   @IsEmail({}, { message: 'Informe um e-mail válido.' })
   email?: string;
 
-  @ApiPropertyOptional({ description: 'Razão social, se o prestador for uma empresa.' })
+  @ApiPropertyOptional({
+    description: 'Razão social, se o prestador for uma empresa.',
+  })
   @IsOptional()
   @IsString()
   companyName?: string;

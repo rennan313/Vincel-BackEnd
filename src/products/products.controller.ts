@@ -9,11 +9,10 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { CreatePriceDto } from './dto/create-price.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ListPricesDto } from './dto/list-prices.dto';
@@ -21,9 +20,11 @@ import { ListProductsDto } from './dto/list-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
 
-// GET is open to any authenticated user — the project detail page's "add
-// material" flow needs to read this catalog. Every mutation stays
-// VINCEL_ADMIN-only (admin dashboard).
+// Every user reads/writes within their own escritório's private catalog
+// (companyId-scoped) — no VINCEL_ADMIN gate needed for that. VINCEL_ADMIN
+// additionally manages the global catalog (companyId null), enforced
+// inside ProductsService rather than at the route level, since the same
+// endpoints serve both.
 @ApiTags('products')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -33,56 +34,72 @@ export class ProductsController {
 
   @Get()
   @ApiOperation({
-    summary: 'Lista os produtos, paginada e com busca por nome/SKU.',
+    summary:
+      'Lista os produtos do próprio escritório (ou o catálogo global, para VINCEL_ADMIN), paginada e com busca por nome/SKU.',
   })
-  list(@Query() query: ListProductsDto) {
-    return this.productsService.list(query);
+  list(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Query() query: ListProductsDto,
+  ) {
+    return this.productsService.list(currentUser, query);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Busca um produto pelo id.' })
-  findOne(@Param('id') id: string) {
-    return this.productsService.findOne(id);
+  findOne(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.productsService.findOne(currentUser, id);
   }
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.VINCEL_ADMIN)
-  @ApiOperation({ summary: 'Cadastra um produto.' })
-  create(@Body() dto: CreateProductDto) {
-    return this.productsService.create(dto);
+  @ApiOperation({
+    summary:
+      'Cadastra um produto no catálogo do próprio escritório (ou no catálogo global, para VINCEL_ADMIN).',
+  })
+  create(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: CreateProductDto,
+  ) {
+    return this.productsService.create(currentUser, dto);
   }
 
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Edita um produto.' })
-  update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
-    return this.productsService.update(id, dto);
+  update(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+  ) {
+    return this.productsService.update(currentUser, id, dto);
   }
 
   @Patch(':id/activate')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Reativa um produto.' })
-  activate(@Param('id') id: string) {
-    return this.productsService.setActive(id, true);
+  activate(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.productsService.setActive(currentUser, id, true);
   }
 
   @Patch(':id/deactivate')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Desativa um produto.' })
-  deactivate(@Param('id') id: string) {
-    return this.productsService.setActive(id, false);
+  deactivate(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.productsService.setActive(currentUser, id, false);
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({ summary: 'Remove (soft delete) um produto.' })
-  remove(@Param('id') id: string) {
-    return this.productsService.remove(id);
+  remove(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.productsService.remove(currentUser, id);
   }
 
   @Get(':id/prices')
@@ -90,18 +107,24 @@ export class ProductsController {
     summary:
       'Histórico de preços do produto (mais recente primeiro), opcionalmente filtrado por fornecedor.',
   })
-  listPrices(@Param('id') id: string, @Query() query: ListPricesDto) {
-    return this.productsService.listPrices(id, query);
+  listPrices(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Query() query: ListPricesDto,
+  ) {
+    return this.productsService.listPrices(currentUser, id, query);
   }
 
   @Post(':id/prices')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.VINCEL_ADMIN)
   @ApiOperation({
     summary:
       'Registra o preço praticado por um fornecedor para o produto (cria uma nova versão; o histórico anterior não é alterado).',
   })
-  createPrice(@Param('id') id: string, @Body() dto: CreatePriceDto) {
-    return this.productsService.createPrice(id, dto);
+  createPrice(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: CreatePriceDto,
+  ) {
+    return this.productsService.createPrice(currentUser, id, dto);
   }
 }

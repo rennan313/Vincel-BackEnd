@@ -43,7 +43,9 @@ export class ProjectProvidersService {
       where: { projectId, providerId },
     });
     if (existingLink) {
-      throw new ConflictException('Esse prestador já está vinculado a este projeto.');
+      throw new ConflictException(
+        'Esse prestador já está vinculado a este projeto.',
+      );
     }
 
     return this.prisma.projectProvider.create({
@@ -61,7 +63,9 @@ export class ProjectProvidersService {
     providerId: string,
     companyId: string,
   ): Promise<string> {
-    const provider = await this.prisma.provider.findUnique({ where: { id: providerId } });
+    const provider = await this.prisma.provider.findUnique({
+      where: { id: providerId },
+    });
     if (!provider || provider.deletedAt || provider.companyId !== companyId) {
       throw new NotFoundException('Prestador não encontrado.');
     }
@@ -125,7 +129,11 @@ export class ProjectProvidersService {
     });
   }
 
-  async remove(currentUser: AuthenticatedUser, projectId: string, linkId: string) {
+  async remove(
+    currentUser: AuthenticatedUser,
+    projectId: string,
+    linkId: string,
+  ) {
     await this.assertLinkScoped(currentUser, projectId, linkId);
     await this.prisma.projectProvider.delete({ where: { id: linkId } });
   }
@@ -134,7 +142,9 @@ export class ProjectProvidersService {
     currentUser: AuthenticatedUser,
     projectId: string,
   ): Promise<Project> {
-    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+    });
     if (!project || project.deletedAt) {
       throw new NotFoundException('Projeto não encontrado.');
     }
@@ -153,7 +163,9 @@ export class ProjectProvidersService {
     linkId: string,
   ): Promise<ProjectProvider> {
     await this.assertProjectScoped(currentUser, projectId);
-    const link = await this.prisma.projectProvider.findUnique({ where: { id: linkId } });
+    const link = await this.prisma.projectProvider.findUnique({
+      where: { id: linkId },
+    });
     if (!link || link.projectId !== projectId) {
       throw new NotFoundException('Prestador não encontrado neste projeto.');
     }
