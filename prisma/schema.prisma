@@ -341,7 +341,7 @@ model Service {
 // ProjectMaterial instead.
 model Product {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  sku         String    @unique
+  sku         String
   name        String
   description String?
   // Unidade de medida, texto livre (ex: "m²", "un", "kg").
@@ -354,6 +354,11 @@ model Product {
   depth       Float?
   colors      String[]
   category    String?
+  // Catalog source (e.g. "Telha Norte", "Leroy Merlin") — same sku can
+  // legitimately repeat across different suppliers, so uniqueness is the
+  // (sku, supplier) pair, not sku alone. Null for a manually-cadastrado
+  // product with no known supplier.
+  supplier    String?
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -361,6 +366,8 @@ model Product {
 
   prices           Price[]
   projectMaterials ProjectMaterial[]
+
+  @@unique([sku, supplier])
 }
 
 model Supplier {

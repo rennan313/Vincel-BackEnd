@@ -43,17 +43,21 @@ export class ProductsService {
   }
 
   async create(dto: CreateProductDto) {
-    // Idempotent by sku: a product already registered under this sku is
-    // reused instead of erroring on the unique constraint — needed so
-    // picking the same partner-catalog item twice (in this or another
-    // project, from any company) links back to the one shared Product.
+    const supplier = dto.supplier ?? null;
+
+    // Idempotent by (sku, supplier): the same sku can legitimately repeat
+    // across different suppliers, so a product already registered under
+    // this exact pair is reused instead of erroring on the unique
+    // constraint — needed so picking the same partner-catalog item twice
+    // (in this or another project, from any company) links back to the
+    // one shared Product.
     const existing = await this.prisma.product.findFirst({
-      where: { sku: dto.sku, deletedAt: null },
+      where: { sku: dto.sku, supplier, deletedAt: null },
     });
     if (existing) return existing;
 
     return this.prisma.product.create({
-      data: { ...dto, deletedAt: null },
+      data: { ...dto, supplier, deletedAt: null },
     });
   }
 
