@@ -37,7 +37,6 @@ model Company {
   clients       Client[]
   projects      Project[]
   providers     Provider[]
-  products      Product[]
   subscriptions Subscription[]
 }
 
@@ -335,13 +334,14 @@ model Service {
   deletedAt DateTime?
 }
 
-// Null companyId = global catalog (curated by VINCEL_ADMIN, aggregated
-// from products across every client — not yet surfaced to regular users'
-// search/list, only stored). A set companyId is a product a company
-// registered itself, private to that company only.
+// Shared reference data (no companyId): one global product catalog, shared
+// by every escritório — including products auto-registered from partner
+// search results (Telha Norte, Leroy Merlin, Loja Obra Fácil...). Per-
+// project specifics (price paid, quantity, status, notes) live on
+// ProjectMaterial instead.
 model Product {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  sku         String
+  sku         String    @unique
   name        String
   description String?
   // Unidade de medida, texto livre (ex: "m²", "un", "kg").
@@ -355,17 +355,12 @@ model Product {
   colors      String[]
   category    String?
   active      Boolean   @default(true)
-  companyId   String?   @db.ObjectId
-  company     Company?  @relation(fields: [companyId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
   prices           Price[]
   projectMaterials ProjectMaterial[]
-
-  @@unique([sku, companyId])
-  @@index([companyId])
 }
 
 model Supplier {

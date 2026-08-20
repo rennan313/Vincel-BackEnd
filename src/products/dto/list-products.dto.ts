@@ -1,13 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsInt,
-  IsMongoId,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class ListProductsDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -34,12 +27,4 @@ export class ListProductsDto {
   @IsOptional()
   @IsString()
   category?: string;
-
-  @ApiPropertyOptional({
-    description:
-      'Apenas para VINCEL_ADMIN: inspeciona o catálogo privado de um escritório específico em vez do catálogo global. Demais usuários sempre veem o próprio catálogo, ignorando este campo.',
-  })
-  @IsOptional()
-  @IsMongoId()
-  companyId?: string;
 }
