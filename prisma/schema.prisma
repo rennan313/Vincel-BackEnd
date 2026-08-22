@@ -92,6 +92,12 @@ type PlanningPhase {
   key           String
   name          String
   estimatedDays Int
+  // When this task is scheduled to start — independent of the project's
+  // overall startDate/endDate. Término previsto is derived on the front
+  // from this + estimatedDays, never stored separately.
+  startDate     DateTime?
+  // Free-text: which team/person executes this task.
+  team          String?
 }
 
 // How honorários is calculated — per_sqm (rate × área) or per_hour (rate × estimatedHours).

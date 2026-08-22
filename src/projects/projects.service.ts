@@ -5,7 +5,18 @@ import { resolveCompanyId } from '../common/company-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ListProjectsDto } from './dto/list-projects.dto';
+import { PlanningPhaseDto } from './dto/planning-phase.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+
+// PlanningPhaseDto.startDate is an ISO string (validated by @IsDateString);
+// the embedded PlanningPhase.startDate is a real DateTime, so each phase
+// needs the same string -> Date conversion applied to the top-level dates.
+function mapPlanningPhases(phases?: PlanningPhaseDto[]) {
+  return phases?.map((phase) => ({
+    ...phase,
+    startDate: phase.startDate ? new Date(phase.startDate) : undefined,
+  }));
+}
 
 @Injectable()
 export class ProjectsService {
@@ -71,7 +82,7 @@ export class ProjectsService {
         clientName: dto.clientName,
         services: dto.services ?? [],
         customServiceLabel: dto.customServiceLabel,
-        planningPhases: dto.planningPhases,
+        planningPhases: mapPlanningPhases(dto.planningPhases),
         complexity: dto.complexity,
         constructionBudget: dto.constructionBudget,
         feeModel: dto.feeModel,
@@ -108,7 +119,7 @@ export class ProjectsService {
         clientName: dto.clientName,
         services: dto.services,
         customServiceLabel: dto.customServiceLabel,
-        planningPhases: dto.planningPhases,
+        planningPhases: mapPlanningPhases(dto.planningPhases),
         complexity: dto.complexity,
         constructionBudget: dto.constructionBudget,
         feeModel: dto.feeModel,
