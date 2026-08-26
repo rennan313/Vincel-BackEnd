@@ -168,8 +168,10 @@ enum ProviderStatus {
 model Provider {
   id         String       @id @default(auto()) @map("_id") @db.ObjectId
   name       String
-  role       ProviderRole
-  // Only meaningful when role is OUTRO.
+  // A provider can hold more than one participação (e.g. eletricista and
+  // encanador) — always at least one.
+  role       ProviderRole[]
+  // Only meaningful when role includes OUTRO.
   customRole  String?
   phone       String?
   email       String?

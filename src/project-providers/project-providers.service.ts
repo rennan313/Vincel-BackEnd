@@ -76,7 +76,7 @@ export class ProjectProvidersService {
     dto: AssignProviderDto,
     companyId: string,
   ): Promise<string> {
-    if (!dto.name?.trim() || !dto.role) {
+    if (!dto.name?.trim() || !dto.role?.length) {
       throw new BadRequestException(
         'Informe o nome e a participação do novo prestador.',
       );

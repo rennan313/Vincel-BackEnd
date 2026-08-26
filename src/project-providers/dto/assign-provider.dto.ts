@@ -1,6 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ProviderRole, ProviderStatus } from '@prisma/client';
 import {
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsEmail,
   IsEnum,
   IsMongoId,
@@ -33,14 +36,18 @@ export class AssignProviderDto {
 
   @ApiPropertyOptional({
     enum: ProviderRole,
-    example: ProviderRole.ELETRICISTA,
+    isArray: true,
+    example: [ProviderRole.ELETRICISTA],
   })
   @IsOptional()
-  @IsEnum(ProviderRole, { message: 'Participação inválida.' })
-  role?: ProviderRole;
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Informe ao menos uma participação.' })
+  @ArrayUnique()
+  @IsEnum(ProviderRole, { each: true, message: 'Participação inválida.' })
+  role?: ProviderRole[];
 
   @ApiPropertyOptional({
-    description: 'Preenchido quando role é OUTRO.',
+    description: 'Preenchido quando role inclui OUTRO.',
   })
   @IsOptional()
   @IsString()
