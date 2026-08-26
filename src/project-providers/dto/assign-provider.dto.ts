@@ -10,6 +10,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   Min,
   MinLength,
 } from 'class-validator';
@@ -99,4 +100,14 @@ export class AssignProviderDto {
   @IsNumber()
   @Min(0)
   agreedAmount?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Peso (%) que a tarefa deste prestador representa na entrega do projeto.',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  weight?: number;
 }

@@ -214,6 +214,9 @@ model ProjectProvider {
   // Valor combinado com este prestador para este projeto — cobre um pacote
   // fechado/empreitada; não é um controle de parcelas/pagamentos.
   agreedAmount   Float?
+  // Peso (%) que a tarefa deste prestador representa na entrega do
+  // projeto — 0 a 100. Não é validado para somar 100% entre prestadores.
+  weight         Float?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 

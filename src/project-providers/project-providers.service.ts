@@ -55,6 +55,7 @@ export class ProjectProvidersService {
         status: dto.status ?? ProviderStatus.A_CONTRATAR,
         responsibility: dto.responsibility,
         agreedAmount: dto.agreedAmount,
+        weight: dto.weight,
       },
       include: { provider: true },
     });
@@ -126,6 +127,7 @@ export class ProjectProvidersService {
         status: dto.status,
         responsibility: dto.responsibility,
         agreedAmount: dto.agreedAmount,
+        weight: dto.weight,
       },
       include: { provider: true },
     });
