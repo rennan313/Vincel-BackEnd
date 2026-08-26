@@ -211,6 +211,9 @@ model ProjectProvider {
   // THIS project — distinct from Provider.role, which is their general trade.
   responsibility String?
   status         ProviderStatus @default(A_CONTRATAR)
+  // Valor combinado com este prestador para este projeto — cobre um pacote
+  // fechado/empreitada; não é um controle de parcelas/pagamentos.
+  agreedAmount   Float?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -252,6 +255,7 @@ model Project {
 
   providerLinks ProjectProvider[]
   materials     ProjectMaterial[]
+  expenses      ProjectExpense[]
 
   startDate DateTime?
   endDate   DateTime?
@@ -321,6 +325,21 @@ model ProjectMaterial {
 
   @@index([projectId])
   @@index([productId])
+}
+
+// A free-form cost the project incurs that isn't a material's totalCost or
+// a prestador's agreedAmount — taxas, licenças, transporte, imprevistos.
+model ProjectExpense {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String   @db.ObjectId
+  project   Project  @relation(fields: [projectId], references: [id])
+  name      String
+  amount    Float
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
 }
 
 // Shared reference data: no companyId, managed only by VINCEL_ADMIN via the

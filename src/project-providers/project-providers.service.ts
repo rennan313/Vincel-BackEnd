@@ -54,6 +54,7 @@ export class ProjectProvidersService {
         providerId,
         status: dto.status ?? ProviderStatus.A_CONTRATAR,
         responsibility: dto.responsibility,
+        agreedAmount: dto.agreedAmount,
       },
       include: { provider: true },
     });
@@ -124,6 +125,7 @@ export class ProjectProvidersService {
       data: {
         status: dto.status,
         responsibility: dto.responsibility,
+        agreedAmount: dto.agreedAmount,
       },
       include: { provider: true },
     });

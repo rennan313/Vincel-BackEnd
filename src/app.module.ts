@@ -10,6 +10,7 @@ import { MaterialLookupModule } from './material-lookup/material-lookup.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
+import { ProjectExpensesModule } from './project-expenses/project-expenses.module';
 import { ProjectMaterialsModule } from './project-materials/project-materials.module';
 import { ProjectProvidersModule } from './project-providers/project-providers.module';
 import { ProjectTypesModule } from './project-types/project-types.module';
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     ProvidersModule,
     ProjectProvidersModule,
     ProjectMaterialsModule,
+    ProjectExpensesModule,
     ServicesModule,
     SuppliersModule,
     ProductsModule,

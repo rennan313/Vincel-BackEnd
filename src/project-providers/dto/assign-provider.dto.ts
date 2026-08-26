@@ -7,8 +7,10 @@ import {
   IsEmail,
   IsEnum,
   IsMongoId,
+  IsNumber,
   IsOptional,
   IsString,
+  Min,
   MinLength,
 } from 'class-validator';
 
@@ -89,4 +91,12 @@ export class AssignProviderDto {
   @IsOptional()
   @IsEnum(ProviderStatus, { message: 'Status inválido.' })
   status?: ProviderStatus;
+
+  @ApiPropertyOptional({
+    description: 'Valor combinado com este prestador para este projeto.',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  agreedAmount?: number;
 }
