@@ -28,12 +28,19 @@ export class PlanningPhaseDto {
   estimatedDays: number;
 
   @ApiPropertyOptional({
-    description:
-      'Data ISO (yyyy-mm-dd) de início da tarefa. Término previsto é derivado no front a partir desta data + estimatedDays.',
+    description: 'Data ISO (yyyy-mm-dd) de início da tarefa.',
   })
   @IsOptional()
   @IsDateString()
   startDate?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Data ISO (yyyy-mm-dd) de término previsto. Por padrão é startDate + estimatedDays, mas pode ser sobrescrita para refletir atraso/adiantamento.',
+  })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 
   @ApiPropertyOptional({ description: 'Equipe responsável pela execução da tarefa.' })
   @IsOptional()

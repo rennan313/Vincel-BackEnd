@@ -15,6 +15,7 @@ function mapPlanningPhases(phases?: PlanningPhaseDto[]) {
   return phases?.map((phase) => ({
     ...phase,
     startDate: phase.startDate ? new Date(phase.startDate) : undefined,
+    endDate: phase.endDate ? new Date(phase.endDate) : undefined,
   }));
 }
 
