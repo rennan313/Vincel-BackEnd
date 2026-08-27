@@ -259,6 +259,7 @@ model Project {
   providerLinks ProjectProvider[]
   materials     ProjectMaterial[]
   expenses      ProjectExpense[]
+  documents     ProjectDocument[]
 
   startDate DateTime?
   endDate   DateTime?
@@ -341,6 +342,26 @@ model ProjectExpense {
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+// A file (planta, memorial, contrato, imagem, ...) attached to a project.
+// The bytes live in Google Cloud Storage under storageKey — this row is
+// just the metadata + pointer, never the file content itself.
+model ProjectDocument {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId  String   @db.ObjectId
+  project    Project  @relation(fields: [projectId], references: [id])
+  name       String
+  type       String
+  notes      String?
+  fileName   String
+  mimeType   String
+  size       Int
+  storageKey String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([projectId])
 }
