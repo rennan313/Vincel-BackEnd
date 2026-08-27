@@ -99,6 +99,9 @@ export class SubscriptionsService {
       externalPlanId: acquirerRef.externalPlanId,
       payerEmail: currentUser.email,
       externalReference: subscription.id,
+      reason: plan.name,
+      price: plan.price,
+      trialDays: plan.trialDays,
     });
 
     return this.prisma.subscription.update({

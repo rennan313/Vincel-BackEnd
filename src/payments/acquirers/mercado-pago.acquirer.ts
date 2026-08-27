@@ -127,12 +127,32 @@ export class MercadoPagoAcquirer implements PaymentAcquirer {
   async subscribeCompany(
     input: SubscribeCompanyInput,
   ): Promise<SubscribeCompanyResult> {
+    // Deliberately not preapproval_plan_id: Mercado Pago's API now requires
+    // a card_token_id up front for a plan-linked preapproval, which breaks
+    // the pure redirect-to-checkout flow (confirmed against the real API).
+    // A standalone preapproval — auto_recurring given inline instead of a
+    // plan reference — still supports redirect checkout with no card_token_id.
     const response = await this.preApproval.create({
       body: {
-        preapproval_plan_id: input.externalPlanId,
+        reason: input.reason,
         payer_email: input.payerEmail,
         external_reference: input.externalReference,
         back_url: this.backUrl,
+        status: 'pending',
+        auto_recurring: {
+          frequency: 1,
+          frequency_type: 'months',
+          transaction_amount: input.price,
+          currency_id: 'BRL',
+          ...(input.trialDays > 0
+            ? {
+                free_trial: {
+                  frequency: input.trialDays,
+                  frequency_type: 'days',
+                },
+              }
+            : {}),
+        },
       },
     });
     if (!response.id || !response.init_point) {
