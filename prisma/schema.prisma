@@ -36,6 +36,7 @@ model Company {
   users         User[]
   clients       Client[]
   projects      Project[]
+  providers     Provider[]
   subscriptions Subscription[]
 }
 
@@ -81,14 +82,6 @@ enum ProjectStatus {
   canceled
 }
 
-type ProjectComponentItem {
-  id       String
-  name     String
-  quantity Int
-  areaSqm  Float?
-  note     String?
-}
-
 enum Complexity {
   LOW
   MEDIUM
@@ -99,6 +92,15 @@ type PlanningPhase {
   key           String
   name          String
   estimatedDays Int
+  // When this task is scheduled to start — independent of the project's
+  // overall startDate/endDate.
+  startDate     DateTime?
+  // Término previsto — defaults to startDate + estimatedDays (computed on
+  // the front) but the user can override it here; the front compares this
+  // against the computed estimate to show how many days ahead/behind.
+  endDate       DateTime?
+  // Free-text: which team/person executes this task.
+  team          String?
 }
 
 // How honorários is calculated — per_sqm (rate × área) or per_hour (rate × estimatedHours).
@@ -131,6 +133,98 @@ type ProjectAddress {
   state        String?
 }
 
+// Fixed set of common AEC service-provider roles — OUTRO is the escape
+// hatch for anything not on the list, paired with ProjectTeamMember.customRole.
+enum ProviderRole {
+  ARQUITETO_COLABORADOR
+  ENGENHEIRO_ESTRUTURAL
+  ENGENHEIRO_ELETRICO
+  ENGENHEIRO_HIDRAULICO
+  MESTRE_OBRAS
+  EMPREITEIRO
+  PEDREIRO
+  ELETRICISTA
+  ENCANADOR
+  MARCENEIRO
+  SERRALHEIRO
+  VIDRACEIRO
+  PINTOR
+  GESSEIRO
+  PAISAGISTA
+  DECORADOR
+  OUTRO
+}
+
+// Where a provider stands in the hiring/work lifecycle for this project.
+enum ProviderStatus {
+  A_CONTRATAR
+  CONTRATADO
+  EM_ANDAMENTO
+  PAUSADO
+  CONCLUIDO
+  CANCELADO
+}
+
+// A service provider (prestador de serviço) — a company-wide contact the
+// office reuses across projects, not a one-off snapshot. Not a User
+// account; providers never log in, they're just tracked contacts.
+model Provider {
+  id         String       @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  // A provider can hold more than one participação (e.g. eletricista and
+  // encanador) — always at least one.
+  role       ProviderRole[]
+  // Only meaningful when role includes OUTRO.
+  customRole  String?
+  phone       String?
+  email       String?
+  // Razão social — named to avoid clashing with the `company` tenant relation below.
+  companyName String?
+  document    String?
+  // General status for this provider — same enum/UI as ProjectProvider.status,
+  // shown on the standalone Prestadores page. Independent per-project status
+  // still lives on ProjectProvider.
+  status      ProviderStatus @default(A_CONTRATAR)
+  active      Boolean      @default(true)
+  companyId   String       @db.ObjectId
+  company     Company      @relation(fields: [companyId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  projectLinks ProjectProvider[]
+
+  @@index([companyId])
+}
+
+// Join record — a provider's participation on one specific project. Kept
+// separate from Provider itself because status/responsibility only make
+// sense per-project; the same provider can have a different status on
+// each project they're linked to.
+model ProjectProvider {
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  projectId      String         @db.ObjectId
+  project        Project        @relation(fields: [projectId], references: [id])
+  providerId     String         @db.ObjectId
+  provider       Provider       @relation(fields: [providerId], references: [id])
+  // Free-text description of what this provider is responsible for on
+  // THIS project — distinct from Provider.role, which is their general trade.
+  responsibility String?
+  status         ProviderStatus @default(A_CONTRATAR)
+  // Valor combinado com este prestador para este projeto — cobre um pacote
+  // fechado/empreitada; não é um controle de parcelas/pagamentos.
+  agreedAmount   Float?
+  // Peso (%) que a tarefa deste prestador representa na entrega do
+  // projeto — 0 a 100. Não é validado para somar 100% entre prestadores.
+  weight         Float?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([projectId, providerId])
+  @@index([projectId])
+  @@index([providerId])
+}
+
 model Project {
   id         String        @id @default(auto()) @map("_id") @db.ObjectId
   name       String
@@ -148,7 +242,6 @@ model Project {
 
   services           String[]
   customServiceLabel String?
-  components         ProjectComponentItem[]
 
   planningPhases PlanningPhase[]
   complexity     Complexity?
@@ -163,6 +256,11 @@ model Project {
   paymentMethod      PaymentMethod?
   installments       ProjectInstallment[]
 
+  providerLinks ProjectProvider[]
+  materials     ProjectMaterial[]
+  expenses      ProjectExpense[]
+  documents     ProjectDocument[]
+
   startDate DateTime?
   endDate   DateTime?
 
@@ -176,6 +274,96 @@ model Project {
   deletedAt DateTime?
 
   @@index([companyId])
+}
+
+// A material's specification lifecycle on a project — A_DEFINIR (not yet
+// chosen) -> ESPECIFICADO -> APROVADO -> COMPRADO.
+enum ProjectMaterialStatus {
+  A_DEFINIR
+  ESPECIFICADO
+  APROVADO
+  COMPRADO
+}
+
+// A material specified for one project — room, status, quantity/cost and
+// the spec sheet ("ficha") shown in its detail view. Optionally linked to a
+// Product from the catalog (for provenance/reuse), but always a full
+// snapshot of its own — editing this never mutates the catalog Product.
+model ProjectMaterial {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String  @db.ObjectId
+  project   Project @relation(fields: [projectId], references: [id])
+  // Set when cadastrado a partir do catálogo de produtos; null for a
+  // free-typed material with no catalog entry.
+  productId String?  @db.ObjectId
+  product   Product? @relation(fields: [productId], references: [id])
+
+  name     String
+  category String?
+  // "Ambiente" — which room/space this material is specified for (e.g. "Suíte", "Cozinha").
+  room     String?
+  status   ProjectMaterialStatus @default(A_DEFINIR)
+
+  quantity  Float?
+  unit      String?
+  unitCost  Float?
+  // Derived on the front from unitCost × quantity, but stored since it's
+  // shown directly and can outlive an edit to either factor.
+  totalCost Float?
+  // Free text for now — not a reusable Supplier-like record.
+  supplier  String?
+
+  brand     String?
+  model     String?
+  thickness String?
+  dimension String?
+  finish    String?
+  color     String?
+
+  image        String?
+  referenceUrl String?
+  notes        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([productId])
+}
+
+// A free-form cost the project incurs that isn't a material's totalCost or
+// a prestador's agreedAmount — taxas, licenças, transporte, imprevistos.
+model ProjectExpense {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String   @db.ObjectId
+  project   Project  @relation(fields: [projectId], references: [id])
+  name      String
+  amount    Float
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+// A file (planta, memorial, contrato, imagem, ...) attached to a project.
+// The bytes live in Google Cloud Storage under storageKey — this row is
+// just the metadata + pointer, never the file content itself.
+model ProjectDocument {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId  String   @db.ObjectId
+  project    Project  @relation(fields: [projectId], references: [id])
+  name       String
+  type       String
+  notes      String?
+  fileName   String
+  mimeType   String
+  size       Int
+  storageKey String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([projectId])
 }
 
 // Shared reference data: no companyId, managed only by VINCEL_ADMIN via the
@@ -200,26 +388,14 @@ model Service {
   deletedAt DateTime?
 }
 
-// Shared reference data, same pattern as ProjectType/Service — the catalog
-// behind the wizard's Escopo step component picker. Not to be confused with
-// ProjectComponentItem (the embedded snapshot a Project actually stores once
-// a component from this catalog, or a free-typed one, is added to it).
-model ProjectComponent {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  name      String    @unique
-  // Display group label (e.g. "Características do imóvel"). Absent for
-  // items shown in the "mais usados" quick-pick row instead of a category.
-  category  String?
-  mostUsed  Boolean   @default(false)
-  active    Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-}
-
+// Shared reference data (no companyId): one global product catalog, shared
+// by every escritório — including products auto-registered from partner
+// search results (Telha Norte, Leroy Merlin, Loja Obra Fácil...). Per-
+// project specifics (price paid, quantity, status, notes) live on
+// ProjectMaterial instead.
 model Product {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  sku         String    @unique
+  sku         String
   name        String
   description String?
   // Unidade de medida, texto livre (ex: "m²", "un", "kg").
@@ -232,12 +408,20 @@ model Product {
   depth       Float?
   colors      String[]
   category    String?
+  // Catalog source (e.g. "Telha Norte", "Leroy Merlin") — same sku can
+  // legitimately repeat across different suppliers, so uniqueness is the
+  // (sku, supplier) pair, not sku alone. Null for a manually-cadastrado
+  // product with no known supplier.
+  supplier    String?
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  prices Price[]
+  prices           Price[]
+  projectMaterials ProjectMaterial[]
+
+  @@unique([sku, supplier])
 }
 
 model Supplier {

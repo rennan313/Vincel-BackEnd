@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, type Product } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePriceDto } from './dto/create-price.dto';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -39,27 +39,40 @@ export class ProductsService {
   }
 
   async findOne(id: string) {
-    return this.findScoped(id);
+    return this.findActive(id);
   }
 
-  create(dto: CreateProductDto) {
+  async create(dto: CreateProductDto) {
+    const supplier = dto.supplier ?? null;
+
+    // Idempotent by (sku, supplier): the same sku can legitimately repeat
+    // across different suppliers, so a product already registered under
+    // this exact pair is reused instead of erroring on the unique
+    // constraint — needed so picking the same partner-catalog item twice
+    // (in this or another project, from any company) links back to the
+    // one shared Product.
+    const existing = await this.prisma.product.findFirst({
+      where: { sku: dto.sku, supplier, deletedAt: null },
+    });
+    if (existing) return existing;
+
     return this.prisma.product.create({
-      data: { ...dto, deletedAt: null },
+      data: { ...dto, supplier, deletedAt: null },
     });
   }
 
   async update(id: string, dto: UpdateProductDto) {
-    await this.findScoped(id);
+    await this.findActive(id);
     return this.prisma.product.update({ where: { id }, data: dto });
   }
 
   async setActive(id: string, active: boolean) {
-    await this.findScoped(id);
+    await this.findActive(id);
     return this.prisma.product.update({ where: { id }, data: { active } });
   }
 
   async remove(id: string) {
-    await this.findScoped(id);
+    await this.findActive(id);
     await this.prisma.product.update({
       where: { id },
       data: { deletedAt: new Date() },
@@ -67,7 +80,7 @@ export class ProductsService {
   }
 
   async listPrices(productId: string, query: ListPricesDto) {
-    await this.findScoped(productId);
+    await this.findActive(productId);
     return this.prisma.price.findMany({
       where: {
         productId,
@@ -78,7 +91,7 @@ export class ProductsService {
   }
 
   async createPrice(productId: string, dto: CreatePriceDto) {
-    await this.findScoped(productId);
+    await this.findActive(productId);
     return this.prisma.price.create({
       data: {
         productId,
@@ -88,7 +101,7 @@ export class ProductsService {
     });
   }
 
-  private async findScoped(id: string): Promise<Product> {
+  private async findActive(id: string) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product || product.deletedAt) {
       throw new NotFoundException('Produto não encontrado.');

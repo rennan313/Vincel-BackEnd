@@ -16,6 +16,9 @@ export interface RecurringPlanResult {
 }
 
 export interface SubscribeCompanyInput {
+  /** The acquirer-side plan template's id (from createRecurringPlan) — kept
+   * for traceability, but MercadoPagoAcquirer no longer sends it on the
+   * checkout call itself (see subscribeCompany for why). */
   externalPlanId: string;
   payerEmail: string;
   /**
@@ -26,6 +29,11 @@ export interface SubscribeCompanyInput {
    * propagating its own subscription id onto every event.
    */
   externalReference: string;
+  /** Plan name — shown to the payer as the subscription's description. */
+  reason: string;
+  /** Monthly amount charged after the trial, in BRL. */
+  price: number;
+  trialDays: number;
 }
 
 export interface SubscribeCompanyResult {

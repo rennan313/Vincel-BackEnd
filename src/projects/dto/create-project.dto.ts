@@ -21,7 +21,6 @@ import {
 } from 'class-validator';
 import { PlanningPhaseDto } from './planning-phase.dto';
 import { ProjectAddressDto } from './project-address.dto';
-import { ProjectComponentDto } from './project-component.dto';
 import { ProjectInstallmentDto } from './project-installment.dto';
 
 export class CreateProjectDto {
@@ -83,13 +82,6 @@ export class CreateProjectDto {
   @IsOptional()
   @IsString()
   customServiceLabel?: string;
-
-  @ApiPropertyOptional({ type: [ProjectComponentDto] })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProjectComponentDto)
-  components?: ProjectComponentDto[];
 
   @ApiPropertyOptional({ type: [PlanningPhaseDto] })
   @IsOptional()

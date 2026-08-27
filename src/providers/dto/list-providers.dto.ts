@@ -1,15 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  IsBoolean,
   IsInt,
+  IsMongoId,
   IsOptional,
   IsString,
   Max,
   Min,
 } from 'class-validator';
 
-export class ListProjectComponentsDto {
+export class ListProvidersDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
@@ -25,19 +25,16 @@ export class ListProjectComponentsDto {
   @Max(100)
   pageSize: number = 20;
 
-  @ApiPropertyOptional({ description: 'Busca por nome.' })
+  @ApiPropertyOptional({ description: 'Busca por nome ou empresa.' })
   @IsOptional()
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ description: 'Filtra por grupo de exibição.' })
+  @ApiPropertyOptional({
+    description:
+      'Obrigatório apenas para VINCEL_ADMIN — demais usuários são escopados pelo próprio token.',
+  })
   @IsOptional()
-  @IsString()
-  category?: string;
-
-  @ApiPropertyOptional({ description: 'Filtra pelos itens "mais usados".' })
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  mostUsed?: boolean;
+  @IsMongoId()
+  companyId?: string;
 }

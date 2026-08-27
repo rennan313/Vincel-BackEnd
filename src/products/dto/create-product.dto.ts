@@ -73,4 +73,13 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   category?: string;
+
+  @ApiPropertyOptional({
+    example: 'Telha Norte',
+    description:
+      'Fonte do catálogo (ex: parceiro de onde o produto veio). O mesmo sku pode se repetir entre fornecedores diferentes — a unicidade é pelo par (sku, supplier).',
+  })
+  @IsOptional()
+  @IsString()
+  supplier?: string;
 }

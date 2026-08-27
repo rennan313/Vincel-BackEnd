@@ -5,7 +5,19 @@ import { resolveCompanyId } from '../common/company-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ListProjectsDto } from './dto/list-projects.dto';
+import { PlanningPhaseDto } from './dto/planning-phase.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+
+// PlanningPhaseDto.startDate is an ISO string (validated by @IsDateString);
+// the embedded PlanningPhase.startDate is a real DateTime, so each phase
+// needs the same string -> Date conversion applied to the top-level dates.
+function mapPlanningPhases(phases?: PlanningPhaseDto[]) {
+  return phases?.map((phase) => ({
+    ...phase,
+    startDate: phase.startDate ? new Date(phase.startDate) : undefined,
+    endDate: phase.endDate ? new Date(phase.endDate) : undefined,
+  }));
+}
 
 @Injectable()
 export class ProjectsService {
@@ -41,7 +53,20 @@ export class ProjectsService {
   }
 
   async findOne(currentUser: AuthenticatedUser, id: string) {
-    return this.findScoped(currentUser, id);
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      include: { providerLinks: { include: { provider: true } } },
+    });
+    if (!project || project.deletedAt) {
+      throw new NotFoundException('Projeto não encontrado.');
+    }
+    if (
+      currentUser.role !== UserRole.VINCEL_ADMIN &&
+      project.companyId !== currentUser.companyId
+    ) {
+      throw new NotFoundException('Projeto não encontrado.');
+    }
+    return project;
   }
 
   async create(currentUser: AuthenticatedUser, dto: CreateProjectDto) {
@@ -58,8 +83,7 @@ export class ProjectsService {
         clientName: dto.clientName,
         services: dto.services ?? [],
         customServiceLabel: dto.customServiceLabel,
-        components: dto.components,
-        planningPhases: dto.planningPhases,
+        planningPhases: mapPlanningPhases(dto.planningPhases),
         complexity: dto.complexity,
         constructionBudget: dto.constructionBudget,
         feeModel: dto.feeModel,
@@ -96,8 +120,7 @@ export class ProjectsService {
         clientName: dto.clientName,
         services: dto.services,
         customServiceLabel: dto.customServiceLabel,
-        components: dto.components,
-        planningPhases: dto.planningPhases,
+        planningPhases: mapPlanningPhases(dto.planningPhases),
         complexity: dto.complexity,
         constructionBudget: dto.constructionBudget,
         feeModel: dto.feeModel,

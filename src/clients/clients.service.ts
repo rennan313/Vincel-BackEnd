@@ -50,6 +50,7 @@ export class ClientsService {
         document: dto.document,
         address: dto.address,
         companyId,
+        deletedAt: null,
       },
     });
   }
