@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   UnauthorizedException,
@@ -6,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   MercadoPagoConfig,
+  MercadoPagoError,
   PreApproval,
   PreApprovalPlan,
   Payment,
@@ -132,29 +134,49 @@ export class MercadoPagoAcquirer implements PaymentAcquirer {
     // the pure redirect-to-checkout flow (confirmed against the real API).
     // A standalone preapproval — auto_recurring given inline instead of a
     // plan reference — still supports redirect checkout with no card_token_id.
-    const response = await this.preApproval.create({
-      body: {
-        reason: input.reason,
-        payer_email: input.payerEmail,
-        external_reference: input.externalReference,
-        back_url: this.backUrl,
-        status: 'pending',
-        auto_recurring: {
-          frequency: 1,
-          frequency_type: 'months',
-          transaction_amount: input.price,
-          currency_id: 'BRL',
-          ...(input.trialDays > 0
-            ? {
-                free_trial: {
-                  frequency: input.trialDays,
-                  frequency_type: 'days',
-                },
-              }
-            : {}),
+    let response;
+    try {
+      response = await this.preApproval.create({
+        body: {
+          reason: input.reason,
+          payer_email: input.payerEmail,
+          external_reference: input.externalReference,
+          back_url: this.backUrl,
+          status: 'pending',
+          auto_recurring: {
+            frequency: 1,
+            frequency_type: 'months',
+            transaction_amount: input.price,
+            currency_id: 'BRL',
+            ...(input.trialDays > 0
+              ? {
+                  free_trial: {
+                    frequency: input.trialDays,
+                    frequency_type: 'days',
+                  },
+                }
+              : {}),
+          },
         },
-      },
-    });
+      });
+    } catch (err) {
+      if (err instanceof MercadoPagoError && err.status >= 400 && err.status < 500) {
+        // "Payer and collector cannot be the same user" is the one we've
+        // actually hit (testing with the same email as the MP account that
+        // owns the access token) — worth a specific message since it's a
+        // real gotcha, not a generic failure. Everything else from MP's 4xx
+        // range still becomes a BadRequestException instead of an unhandled 500.
+        if (err.message?.includes('cannot be the same user')) {
+          throw new BadRequestException(
+            'O e-mail da conta usada para assinar não pode ser o mesmo e-mail da conta Mercado Pago que recebe os pagamentos.',
+          );
+        }
+        throw new BadRequestException(
+          `Mercado Pago recusou a assinatura: ${err.message}`,
+        );
+      }
+      throw err;
+    }
     if (!response.id || !response.init_point) {
       throw new InternalServerErrorException(
         'Mercado Pago não retornou os dados da assinatura.',
