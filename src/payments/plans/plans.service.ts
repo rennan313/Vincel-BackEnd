@@ -38,11 +38,30 @@ export class PlansService {
       },
     });
 
-    // Sync the new plan to every currently-enabled acquirer so it's
-    // immediately subscribable. If no acquirer is enabled the plan is just
-    // created with no acquirerRefs — nothing to subscribe to until one is.
-    const acquirerRefs = await Promise.all(
-      this.acquirers.listEnabled().map(async (acquirer) => {
+    // Sync to every currently-enabled acquirer so it's immediately
+    // subscribable. If no acquirer is enabled yet the plan is just created
+    // with no acquirerRefs — nothing to subscribe to until one is (and
+    // syncAcquirers can be called later to backfill it, e.g. once an
+    // acquirer's credentials go from placeholder to real).
+    return this.syncAcquirers(plan.id);
+  }
+
+  /**
+   * Backfills acquirerRefs for every enabled acquirer the plan isn't
+   * synced with yet — idempotent, skips acquirers already present. Needed
+   * because create() only syncs against acquirers enabled *at creation
+   * time*; a plan created before an acquirer's credentials went live (or
+   * before it was enabled at all) is otherwise stuck unsubscribable
+   * forever with no way to catch up.
+   */
+  async syncAcquirers(id: string) {
+    const plan = await this.findScoped(id);
+    const synced = new Set(plan.acquirerRefs.map((ref) => ref.acquirer));
+    const missing = this.acquirers.listEnabled().filter((a) => !synced.has(a));
+    if (missing.length === 0) return plan;
+
+    const newRefs = await Promise.all(
+      missing.map(async (acquirer) => {
         const { externalPlanId } = await this.acquirers
           .get(acquirer)
           .createRecurringPlan({
@@ -54,10 +73,9 @@ export class PlansService {
       }),
     );
 
-    if (acquirerRefs.length === 0) return plan;
     return this.prisma.plan.update({
       where: { id: plan.id },
-      data: { acquirerRefs },
+      data: { acquirerRefs: [...plan.acquirerRefs, ...newRefs] },
     });
   }
 
