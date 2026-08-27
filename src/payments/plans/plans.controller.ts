@@ -56,6 +56,17 @@ export class PlansController {
     return this.plansService.update(id, dto);
   }
 
+  @Post(':id/sync')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.VINCEL_ADMIN)
+  @ApiOperation({
+    summary:
+      'Sincroniza o plano com todo adquirente habilitado que ele ainda não conhece — cobre um plano criado antes do adquirente ser habilitado/ter credenciais reais.',
+  })
+  sync(@Param('id') id: string) {
+    return this.plansService.syncAcquirers(id);
+  }
+
   @Patch(':id/activate')
   @UseGuards(RolesGuard)
   @Roles(UserRole.VINCEL_ADMIN)
