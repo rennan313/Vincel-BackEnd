@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ProviderRole, ProviderStatus } from '@prisma/client';
+import { ProviderRole } from '@prisma/client';
 import {
   ArrayMinSize,
   ArrayUnique,
@@ -57,14 +57,6 @@ export class CreateProviderDto {
   @IsOptional()
   @IsString()
   document?: string;
-
-  @ApiPropertyOptional({
-    enum: ProviderStatus,
-    default: ProviderStatus.A_CONTRATAR,
-  })
-  @IsOptional()
-  @IsEnum(ProviderStatus, { message: 'Status inválido.' })
-  status?: ProviderStatus;
 
   @ApiPropertyOptional({
     description:

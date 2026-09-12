@@ -181,10 +181,7 @@ model Provider {
   // Razão social — named to avoid clashing with the `company` tenant relation below.
   companyName String?
   document    String?
-  // General status for this provider — same enum/UI as ProjectProvider.status,
-  // shown on the standalone Prestadores page. Independent per-project status
-  // still lives on ProjectProvider.
-  status      ProviderStatus @default(A_CONTRATAR)
+  // Status only makes sense per-project — see ProjectProvider.status.
   active      Boolean      @default(true)
   companyId   String       @db.ObjectId
   company     Company      @relation(fields: [companyId], references: [id])
