@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -102,6 +103,11 @@ export class UsersService {
   }
 
   async setActive(currentUser: AuthenticatedUser, id: string, active: boolean) {
+    if (!active && id === currentUser.id) {
+      throw new ForbiddenException(
+        'Você não pode desativar o seu próprio usuário.',
+      );
+    }
     await this.findScoped(currentUser, id);
     return this.prisma.user.update({
       where: { id },
