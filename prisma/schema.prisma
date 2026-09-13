@@ -38,6 +38,7 @@ model Company {
   projects      Project[]
   providers     Provider[]
   subscriptions Subscription[]
+  agendaTasks   AgendaTask[]
 }
 
 enum ClientType {
@@ -576,4 +577,20 @@ model PaymentCharge {
 
   @@unique([acquirer, externalId])
   @@index([subscriptionId])
+}
+
+// A standalone reminder on the Agenda calendar — not tied to a project or
+// to the project's own Cronograma (see PlanningPhase). Just a name and a
+// date the office wants to remember.
+model AgendaTask {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  date      DateTime
+  companyId String    @db.ObjectId
+  company   Company   @relation(fields: [companyId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([companyId])
 }
