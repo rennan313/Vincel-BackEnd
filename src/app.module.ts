@@ -21,6 +21,7 @@ import { ProvidersModule } from './providers/providers.module';
 import { ServicesModule } from './services/services.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { TelhaNorteModule } from './telha-norte/telha-norte.module';
+import { TimeEntriesModule } from './time-entries/time-entries.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -46,6 +47,7 @@ import { UsersModule } from './users/users.module';
     LojaObraFacilModule,
     PaymentsModule,
     AgendaTasksModule,
+    TimeEntriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
