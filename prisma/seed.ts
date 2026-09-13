@@ -42,7 +42,7 @@ const PLANS = [
   {
     name: 'Solo',
     description: 'Para arquitetos autônomos administrando poucos projetos.',
-    price: 149.9,
+    price: 99.9,
     trialDays: 0,
     isDefault: true,
   },
@@ -50,7 +50,7 @@ const PLANS = [
     name: 'Escritório',
     description:
       'Para escritórios pequenos e médios com múltiplos projetos ativos.',
-    price: 349.9,
+    price: 159.9,
     trialDays: 0,
     isDefault: false,
   },
