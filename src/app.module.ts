@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AgendaTasksModule } from './agenda-tasks/agenda-tasks.module';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { LeroyMerlinModule } from './leroy-merlin/leroy-merlin.module';
@@ -44,6 +45,7 @@ import { UsersModule } from './users/users.module';
     LeroyMerlinModule,
     LojaObraFacilModule,
     PaymentsModule,
+    AgendaTasksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
