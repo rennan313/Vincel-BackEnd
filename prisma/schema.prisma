@@ -476,26 +476,7 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  refreshTokens RefreshToken[]
   timeEntries   TimeEntry[]
-}
-
-// Backs the "stay logged in" refresh flow: the access token (JwtStrategy)
-// stays short-lived, while this opaque, rotating token lets the front renew
-// it silently for as long as RefreshToken.expiresAt allows. Only a SHA-256
-// hash of the raw token is ever stored — the raw value exists solely in the
-// client and in transit, same principle as passwordHash above.
-model RefreshToken {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  tokenHash String   @unique
-  userId    String   @db.ObjectId
-  user      User     @relation(fields: [userId], references: [id])
-  expiresAt DateTime
-  // Null while active. Set either when this token is rotated into a
-  // successor (normal use) or when a reuse of an already-rotated token is
-  // detected and the whole chain is force-revoked (see AuthService.refreshTokens).
-  revokedAt DateTime?
-  createdAt DateTime @default(now())
 }
 
 // The acquirer actually processing a given Plan/Subscription/PaymentCharge.
