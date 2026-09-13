@@ -102,6 +102,12 @@ type PlanningPhase {
   endDate       DateTime?
   // Free-text: which team/person executes this task.
   team          String?
+  // How many hours this task is expected to take — relevant for projects
+  // billed per_hour (see Project.feeModel), but tracked on every phase.
+  estimatedHours Float?
+  // Hours already worked on this task. Manually edited for now; a future
+  // sidebar timer will be able to add to this automatically instead.
+  loggedHours    Float?
 }
 
 // How honorários is calculated — per_sqm (rate × área) or per_hour (rate × estimatedHours).

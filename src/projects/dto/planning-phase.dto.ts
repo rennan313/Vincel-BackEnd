@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Min,
@@ -46,4 +47,19 @@ export class PlanningPhaseDto {
   @IsOptional()
   @IsString()
   team?: string;
+
+  @ApiPropertyOptional({ description: 'Quantas horas essa etapa deve levar.' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  estimatedHours?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Quantas horas já foram trabalhadas nessa etapa — hoje editável manualmente; futuramente também alimentado por um timer.',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  loggedHours?: number;
 }
