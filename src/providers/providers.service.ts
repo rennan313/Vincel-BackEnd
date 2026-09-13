@@ -51,7 +51,6 @@ export class ProvidersService {
         email: dto.email,
         companyName: dto.companyName,
         document: dto.document,
-        status: dto.status,
         companyId,
         deletedAt: null,
       },
@@ -75,7 +74,6 @@ export class ProvidersService {
         email: dto.email,
         companyName: dto.companyName,
         document: dto.document,
-        status: dto.status,
       },
     });
   }
