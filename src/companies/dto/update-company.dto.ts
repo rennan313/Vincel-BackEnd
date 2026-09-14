@@ -26,10 +26,9 @@ export class UpdateCompanyDto {
   @IsString()
   contactPhone?: string;
 
-  @ApiPropertyOptional({ description: 'URL do logo, já hospedado.' })
-  @IsOptional()
-  @IsString()
-  logoUrl?: string;
+  // logoUrl is not editable here — it's server-computed by
+  // POST/DELETE /companies/me/logo, which resizes and hosts the image
+  // itself instead of trusting an arbitrary pasted URL.
 
   @ApiPropertyOptional({ type: CompanyAddressDto })
   @IsOptional()

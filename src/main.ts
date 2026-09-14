@@ -1,10 +1,17 @@
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Behind Cloud Run's HTTPS-terminating proxy, the request Express sees is
+  // plain HTTP — without this, req.protocol always reports "http" and any
+  // absolute URL built from it (e.g. the company logo URL) would be mixed
+  // content in production.
+  app.set('trust proxy', 1);
 
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
