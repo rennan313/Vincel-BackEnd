@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AgendaTasksModule } from './agenda-tasks/agenda-tasks.module';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
+import { CompaniesModule } from './companies/companies.module';
 import { LeroyMerlinModule } from './leroy-merlin/leroy-merlin.module';
 import { LojaObraFacilModule } from './loja-obra-facil/loja-obra-facil.module';
 import { MaterialLookupModule } from './material-lookup/material-lookup.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     ClientsModule,
+    CompaniesModule,
     ProjectTypesModule,
     ProjectsModule,
     ProvidersModule,

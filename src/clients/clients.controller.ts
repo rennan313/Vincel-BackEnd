@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -14,17 +16,18 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
+import { CreatePublicClientDto } from './dto/create-public-client.dto';
 import { ListClientsDto } from './dto/list-clients.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 
 @ApiTags('clients')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('clients')
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Get()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
       'Lista os clientes do escritório, paginada e com busca por nome/e-mail.',
@@ -37,6 +40,8 @@ export class ClientsController {
   }
 
   @Post()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Cadastra um cliente no escritório.' })
   create(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -45,7 +50,19 @@ export class ClientsController {
     return this.clientsService.create(currentUser, dto);
   }
 
+  @Post('public')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary:
+      'Autocadastro público de cliente para um escritório — sem autenticação, o companyId vem no corpo.',
+  })
+  registerPublic(@Body() dto: CreatePublicClientDto) {
+    return this.clientsService.registerPublic(dto);
+  }
+
   @Patch(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Edita um cliente.' })
   update(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -56,6 +73,8 @@ export class ClientsController {
   }
 
   @Patch(':id/activate')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Reativa um cliente.' })
   activate(
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -65,6 +84,8 @@ export class ClientsController {
   }
 
   @Patch(':id/deactivate')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Desativa um cliente.' })
   deactivate(
     @CurrentUser() currentUser: AuthenticatedUser,

@@ -21,6 +21,16 @@ enum CompanyDocumentType {
   CPF
 }
 
+type CompanyAddress {
+  zip          String?
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+}
+
 // A "company" is a tenant (escritório). Every tenant-owned record carries a
 // companyId; shared reference data (project types, services, materials...)
 // does not and stays global across tenants.
@@ -29,6 +39,13 @@ model Company {
   name         String
   document     String              @unique
   documentType CompanyDocumentType
+  // Editable via PATCH /companies/me (ADMIN) — logoUrl/contactEmail/
+  // contactPhone are also shown on the public client-invite page (GET
+  // /companies/:id/public), address is not.
+  logoUrl      String?
+  contactEmail String?
+  contactPhone String?
+  address      CompanyAddress?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   deletedAt    DateTime?
