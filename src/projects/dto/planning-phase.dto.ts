@@ -43,7 +43,9 @@ export class PlanningPhaseDto {
   @IsDateString()
   endDate?: string;
 
-  @ApiPropertyOptional({ description: 'Equipe responsável pela execução da tarefa.' })
+  @ApiPropertyOptional({
+    description: 'Equipe responsável pela execução da tarefa.',
+  })
   @IsOptional()
   @IsString()
   team?: string;

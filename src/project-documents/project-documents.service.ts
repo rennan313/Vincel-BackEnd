@@ -74,10 +74,13 @@ export class ProjectDocumentsService {
     }
 
     const storageKey = `projects/${projectId}/${randomUUID()}-${file.originalname}`;
-    await this.storage.bucket(this.bucketName).file(storageKey).save(file.buffer, {
-      contentType: file.mimetype || 'application/octet-stream',
-      resumable: false,
-    });
+    await this.storage
+      .bucket(this.bucketName)
+      .file(storageKey)
+      .save(file.buffer, {
+        contentType: file.mimetype || 'application/octet-stream',
+        resumable: false,
+      });
 
     return this.prisma.projectDocument.create({
       data: {

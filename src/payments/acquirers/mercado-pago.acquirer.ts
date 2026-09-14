@@ -160,7 +160,11 @@ export class MercadoPagoAcquirer implements PaymentAcquirer {
         },
       });
     } catch (err) {
-      if (err instanceof MercadoPagoError && err.status >= 400 && err.status < 500) {
+      if (
+        err instanceof MercadoPagoError &&
+        err.status >= 400 &&
+        err.status < 500
+      ) {
         // "Payer and collector cannot be the same user" is the one we've
         // actually hit (testing with the same email as the MP account that
         // owns the access token) — worth a specific message since it's a

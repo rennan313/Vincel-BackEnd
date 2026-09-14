@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsMongoId, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsDateString,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class CreateAgendaTaskDto {
   @ApiProperty({ example: 'Visita técnica ao terreno' })

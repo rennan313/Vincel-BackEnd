@@ -74,10 +74,7 @@ export class TimeEntriesController {
 
   @Patch(':id/stop')
   @ApiOperation({ summary: 'Encerra a atividade.' })
-  stop(
-    @CurrentUser() currentUser: AuthenticatedUser,
-    @Param('id') id: string,
-  ) {
+  stop(@CurrentUser() currentUser: AuthenticatedUser, @Param('id') id: string) {
     return this.timeEntriesService.stop(currentUser, id);
   }
 }

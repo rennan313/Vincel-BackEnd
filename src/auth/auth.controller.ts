@@ -55,7 +55,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Autentica com e-mail e senha.' })
   @ApiResponse({ status: 200, description: 'Autenticado.' })
-  @ApiResponse({ status: 401, description: 'E-mail/senha inválidos ou conta desativada.' })
+  @ApiResponse({
+    status: 401,
+    description: 'E-mail/senha inválidos ou conta desativada.',
+  })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }

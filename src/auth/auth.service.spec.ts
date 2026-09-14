@@ -341,7 +341,9 @@ describe('AuthService.login', () => {
   });
 
   it('rejects a wrong password', async () => {
-    prisma.user.findUnique.mockResolvedValue(await userWithPassword('correct-pass'));
+    prisma.user.findUnique.mockResolvedValue(
+      await userWithPassword('correct-pass'),
+    );
 
     await expect(
       service.login({ email: 'ana@escritorio.com.br', password: 'wrong-pass' }),
@@ -354,12 +356,17 @@ describe('AuthService.login', () => {
     );
 
     await expect(
-      service.login({ email: 'ana@escritorio.com.br', password: 'correct-pass' }),
+      service.login({
+        email: 'ana@escritorio.com.br',
+        password: 'correct-pass',
+      }),
     ).rejects.toThrow(UnauthorizedException);
   });
 
   it('logs in and issues a token pair on correct credentials', async () => {
-    prisma.user.findUnique.mockResolvedValue(await userWithPassword('correct-pass'));
+    prisma.user.findUnique.mockResolvedValue(
+      await userWithPassword('correct-pass'),
+    );
 
     const result = await service.login({
       email: 'ana@escritorio.com.br',
