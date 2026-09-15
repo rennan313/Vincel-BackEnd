@@ -50,13 +50,38 @@ model Company {
   updatedAt    DateTime            @updatedAt
   deletedAt    DateTime?
 
-  users         User[]
-  clients       Client[]
-  projects      Project[]
-  providers     Provider[]
-  subscriptions Subscription[]
-  agendaTasks   AgendaTask[]
-  timeEntries   TimeEntry[]
+  users                    User[]
+  clients                  Client[]
+  projects                 Project[]
+  providers                Provider[]
+  subscriptions            Subscription[]
+  agendaTasks              AgendaTask[]
+  timeEntries              TimeEntry[]
+  scheduleStatusCategories ScheduleStatusCategory[]
+}
+
+// User-defined categories for the Cronograma's schedule-adherence
+// indicator (e.g. "No prazo"/verde, "Atenção"/amarelo, "Atrasado"/vermelho)
+// — the escritório picks the label, color and the delay threshold, not the
+// product. Resolution: sort ascending by thresholdDays, take the LAST
+// category whose thresholdDays <= a project's computed delay (días de
+// atraso do término previsto até hoje), falling back to the smallest
+// threshold when the project isn't late at all (or is ahead). A project
+// may instead pin an explicit category (Project.scheduleStatusCategoryId),
+// which always wins over this automatic resolution — done entirely on the
+// frontend, this table only holds the category definitions themselves.
+model ScheduleStatusCategory {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  label         String
+  // Hex color, e.g. "#22c55e".
+  color         String
+  thresholdDays Int
+  companyId     String   @db.ObjectId
+  company       Company  @relation(fields: [companyId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyId])
 }
 
 enum ClientType {
@@ -286,6 +311,11 @@ model Project {
 
   startDate DateTime?
   endDate   DateTime?
+
+  // Manual pin onto a ScheduleStatusCategory — overrides the frontend's
+  // automatic (delay-based) resolution when set. No @relation: categories
+  // are looked up by id from the same company's list, not joined here.
+  scheduleStatusCategoryId String? @db.ObjectId
 
   address ProjectAddress?
 

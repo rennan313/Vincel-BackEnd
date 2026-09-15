@@ -19,6 +19,7 @@ import { ProjectProvidersModule } from './project-providers/project-providers.mo
 import { ProjectTypesModule } from './project-types/project-types.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ProvidersModule } from './providers/providers.module';
+import { ScheduleStatusCategoriesModule } from './schedule-status-categories/schedule-status-categories.module';
 import { ServicesModule } from './services/services.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { TelhaNorteModule } from './telha-norte/telha-norte.module';
@@ -50,6 +51,7 @@ import { UsersModule } from './users/users.module';
     PaymentsModule,
     AgendaTasksModule,
     TimeEntriesModule,
+    ScheduleStatusCategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
