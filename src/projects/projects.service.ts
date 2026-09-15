@@ -94,6 +94,7 @@ export class ProjectsService {
         installments: dto.installments,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        scheduleStatusCategoryId: dto.scheduleStatusCategoryId,
         address: dto.address,
         companyId,
         deletedAt: null,
@@ -131,6 +132,7 @@ export class ProjectsService {
         installments: dto.installments,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        scheduleStatusCategoryId: dto.scheduleStatusCategoryId,
         address: dto.address,
       },
     });

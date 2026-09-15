@@ -22,6 +22,8 @@ import type { Profile } from 'passport-google-oauth20';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CompleteGoogleRegistrationDto } from './dto/complete-google-registration.dto';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { AuthenticatedUser } from './strategies/jwt.strategy';
@@ -49,6 +51,18 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Autentica com e-mail e senha.' })
+  @ApiResponse({ status: 200, description: 'Autenticado.' })
+  @ApiResponse({
+    status: 401,
+    description: 'E-mail/senha inválidos ou conta desativada.',
+  })
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
+
   @Post('google/complete')
   @ApiOperation({
     summary:
@@ -61,6 +75,29 @@ export class AuthController {
   })
   completeGoogleRegistration(@Body() dto: CompleteGoogleRegistrationDto) {
     return this.authService.completeGoogleRegistration(dto);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Renova o access token a partir de um refresh token válido, rotacionando-o.',
+  })
+  @ApiResponse({ status: 200, description: 'Novo par de tokens.' })
+  @ApiResponse({
+    status: 401,
+    description: 'Refresh token inválido, expirado ou já utilizado.',
+  })
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshTokens(dto.refreshToken);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Revoga o refresh token da sessão atual.' })
+  @ApiResponse({ status: 204, description: 'Sessão encerrada.' })
+  async logout(@Body() dto: RefreshTokenDto) {
+    await this.authService.revokeRefreshToken(dto.refreshToken);
   }
 
   @Get('me')
@@ -94,6 +131,7 @@ export class AuthController {
       if (result.status === 'authenticated') {
         const redirectUrl = new URL('/auth/callback', frontendUrl);
         redirectUrl.searchParams.set('token', result.accessToken);
+        redirectUrl.searchParams.set('refreshToken', result.refreshToken);
         return res.redirect(redirectUrl.toString());
       }
 

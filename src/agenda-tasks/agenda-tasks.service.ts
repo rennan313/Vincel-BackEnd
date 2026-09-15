@@ -19,7 +19,9 @@ export class AgendaTasksService {
         ? {
             date: {
               ...(query.from ? { gte: new Date(query.from) } : {}),
-              ...(query.to ? { lte: new Date(`${query.to}T23:59:59.999Z`) } : {}),
+              ...(query.to
+                ? { lte: new Date(`${query.to}T23:59:59.999Z`) }
+                : {}),
             },
           }
         : {}),

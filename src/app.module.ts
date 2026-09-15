@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AgendaTasksModule } from './agenda-tasks/agenda-tasks.module';
 import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
+import { CompaniesModule } from './companies/companies.module';
 import { LeroyMerlinModule } from './leroy-merlin/leroy-merlin.module';
 import { LojaObraFacilModule } from './loja-obra-facil/loja-obra-facil.module';
 import { MaterialLookupModule } from './material-lookup/material-lookup.module';
@@ -18,9 +19,11 @@ import { ProjectProvidersModule } from './project-providers/project-providers.mo
 import { ProjectTypesModule } from './project-types/project-types.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ProvidersModule } from './providers/providers.module';
+import { ScheduleStatusCategoriesModule } from './schedule-status-categories/schedule-status-categories.module';
 import { ServicesModule } from './services/services.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { TelhaNorteModule } from './telha-norte/telha-norte.module';
+import { TimeEntriesModule } from './time-entries/time-entries.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -30,6 +33,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     ClientsModule,
+    CompaniesModule,
     ProjectTypesModule,
     ProjectsModule,
     ProvidersModule,
@@ -46,6 +50,8 @@ import { UsersModule } from './users/users.module';
     LojaObraFacilModule,
     PaymentsModule,
     AgendaTasksModule,
+    TimeEntriesModule,
+    ScheduleStatusCategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -4,6 +4,7 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { resolveCompanyId } from '../common/company-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
+import { CreatePublicClientDto } from './dto/create-public-client.dto';
 import { ListClientsDto } from './dto/list-clients.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 
@@ -50,6 +51,31 @@ export class ClientsService {
         document: dto.document,
         address: dto.address,
         companyId,
+        deletedAt: null,
+      },
+    });
+  }
+
+  /**
+   * Public self-registration: no authenticated user, so the target
+   * company comes straight from the payload — validated here instead of
+   * via resolveCompanyId, which assumes a token.
+   */
+  async registerPublic(dto: CreatePublicClientDto) {
+    const company = await this.prisma.company.findUnique({
+      where: { id: dto.companyId },
+    });
+    if (!company || company.deletedAt) {
+      throw new NotFoundException('Escritório não encontrado.');
+    }
+
+    return this.prisma.client.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        phone: dto.phone,
+        type: dto.type,
+        companyId: dto.companyId,
         deletedAt: null,
       },
     });

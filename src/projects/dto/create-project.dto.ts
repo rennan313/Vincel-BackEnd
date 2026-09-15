@@ -148,6 +148,15 @@ export class CreateProjectDto {
   @IsDateString()
   endDate?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Pin manual para uma ScheduleStatusCategory — envie null para voltar à resolução automática (por atraso).',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsMongoId()
+  scheduleStatusCategoryId?: string | null;
+
   @ApiPropertyOptional({ type: ProjectAddressDto })
   @IsOptional()
   @ValidateNested()

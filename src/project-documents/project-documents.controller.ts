@@ -12,7 +12,12 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -53,7 +58,12 @@ export class ProjectDocumentsController {
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: CreateDocumentDto,
   ) {
-    return this.projectDocumentsService.upload(currentUser, projectId, file, dto);
+    return this.projectDocumentsService.upload(
+      currentUser,
+      projectId,
+      file,
+      dto,
+    );
   }
 
   @Patch(':documentId')
@@ -80,11 +90,12 @@ export class ProjectDocumentsController {
     @Param('documentId') documentId: string,
     @Res() res: Response,
   ) {
-    const { document, stream } = await this.projectDocumentsService.getDownloadTarget(
-      currentUser,
-      projectId,
-      documentId,
-    );
+    const { document, stream } =
+      await this.projectDocumentsService.getDownloadTarget(
+        currentUser,
+        projectId,
+        documentId,
+      );
 
     res.setHeader('Content-Type', document.mimeType);
     res.setHeader(
@@ -101,6 +112,10 @@ export class ProjectDocumentsController {
     @Param('projectId') projectId: string,
     @Param('documentId') documentId: string,
   ) {
-    return this.projectDocumentsService.remove(currentUser, projectId, documentId);
+    return this.projectDocumentsService.remove(
+      currentUser,
+      projectId,
+      documentId,
+    );
   }
 }

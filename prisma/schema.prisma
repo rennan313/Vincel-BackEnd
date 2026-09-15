@@ -21,6 +21,16 @@ enum CompanyDocumentType {
   CPF
 }
 
+type CompanyAddress {
+  zip          String?
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+}
+
 // A "company" is a tenant (escritório). Every tenant-owned record carries a
 // companyId; shared reference data (project types, services, materials...)
 // does not and stays global across tenants.
@@ -29,16 +39,49 @@ model Company {
   name         String
   document     String              @unique
   documentType CompanyDocumentType
+  // Editable via PATCH /companies/me (ADMIN) — logoUrl/contactEmail/
+  // contactPhone are also shown on the public client-invite page (GET
+  // /companies/:id/public), address is not.
+  logoUrl      String?
+  contactEmail String?
+  contactPhone String?
+  address      CompanyAddress?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   deletedAt    DateTime?
 
-  users         User[]
-  clients       Client[]
-  projects      Project[]
-  providers     Provider[]
-  subscriptions Subscription[]
-  agendaTasks   AgendaTask[]
+  users                    User[]
+  clients                  Client[]
+  projects                 Project[]
+  providers                Provider[]
+  subscriptions            Subscription[]
+  agendaTasks              AgendaTask[]
+  timeEntries              TimeEntry[]
+  scheduleStatusCategories ScheduleStatusCategory[]
+}
+
+// User-defined categories for the Cronograma's schedule-adherence
+// indicator (e.g. "No prazo"/verde, "Atenção"/amarelo, "Atrasado"/vermelho)
+// — the escritório picks the label, color and the delay threshold, not the
+// product. Resolution: sort ascending by thresholdDays, take the LAST
+// category whose thresholdDays <= a project's computed delay (días de
+// atraso do término previsto até hoje), falling back to the smallest
+// threshold when the project isn't late at all (or is ahead). A project
+// may instead pin an explicit category (Project.scheduleStatusCategoryId),
+// which always wins over this automatic resolution — done entirely on the
+// frontend, this table only holds the category definitions themselves.
+model ScheduleStatusCategory {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  label         String
+  // Hex color, e.g. "#22c55e".
+  color         String
+  thresholdDays Int
+  companyId     String   @db.ObjectId
+  company       Company  @relation(fields: [companyId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([companyId])
 }
 
 enum ClientType {
@@ -264,9 +307,15 @@ model Project {
   materials     ProjectMaterial[]
   expenses      ProjectExpense[]
   documents     ProjectDocument[]
+  timeEntries   TimeEntry[]
 
   startDate DateTime?
   endDate   DateTime?
+
+  // Manual pin onto a ScheduleStatusCategory — overrides the frontend's
+  // automatic (delay-based) resolution when set. No @relation: categories
+  // are looked up by id from the same company's list, not joined here.
+  scheduleStatusCategoryId String? @db.ObjectId
 
   address ProjectAddress?
 
@@ -473,6 +522,27 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
+
+  refreshTokens RefreshToken[]
+  timeEntries   TimeEntry[]
+}
+
+// Backs the "stay logged in" refresh flow: the access token (JwtStrategy)
+// stays short-lived, while this opaque, rotating token lets the front renew
+// it silently for as long as RefreshToken.expiresAt allows. Only a SHA-256
+// hash of the raw token is ever stored — the raw value exists solely in the
+// client and in transit, same principle as passwordHash above.
+model RefreshToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  tokenHash String   @unique
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  // Null while active. Set either when this token is rotated into a
+  // successor (normal use) or when a reuse of an already-rotated token is
+  // detected and the whole chain is force-revoked (see AuthService.refreshTokens).
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
 }
 
 // The acquirer actually processing a given Plan/Subscription/PaymentCharge.
@@ -599,4 +669,31 @@ model AgendaTask {
   deletedAt DateTime?
 
   @@index([companyId])
+}
+
+// One sidebar-timer session — "Atividade" + "Projeto", started/paused/
+// stopped by the logged-in user. endedAt stays null while the timer is
+// running (paused or not); pausedAt is set only while actively paused, and
+// its elapsed gap folds into pausedMs on resume/stop. Real worked duration
+// is always (endedAt - startedAt - pausedMs).
+model TimeEntry {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  activity  String
+  projectId String    @db.ObjectId
+  project   Project   @relation(fields: [projectId], references: [id])
+  userId    String    @db.ObjectId
+  user      User      @relation(fields: [userId], references: [id])
+  companyId String    @db.ObjectId
+  company   Company   @relation(fields: [companyId], references: [id])
+  startedAt DateTime
+  endedAt   DateTime?
+  pausedMs  Int       @default(0)
+  pausedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([projectId])
 }

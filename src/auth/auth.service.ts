@@ -1,8 +1,10 @@
+import { randomBytes, createHash } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -16,11 +18,14 @@ import * as bcrypt from 'bcryptjs';
 import type { Profile } from 'passport-google-oauth20';
 import { PrismaService } from '../prisma/prisma.service';
 import { CompleteGoogleRegistrationDto } from './dto/complete-google-registration.dto';
+import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
 const SALT_ROUNDS = 10;
 const GOOGLE_PENDING_PURPOSE = 'google-register-pending';
 const GOOGLE_PENDING_EXPIRES_IN = '10m';
+const REFRESH_TOKEN_BYTES = 64;
+const DEFAULT_REFRESH_TOKEN_TTL_DAYS = 30;
 
 interface GooglePendingPayload {
   purpose: typeof GOOGLE_PENDING_PURPOSE;
@@ -29,8 +34,13 @@ interface GooglePendingPayload {
   name: string;
 }
 
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
 export type GoogleAuthResult =
-  | { status: 'authenticated'; accessToken: string }
+  | ({ status: 'authenticated' } & TokenPair)
   | { status: 'pending'; pendingToken: string; name: string; email: string };
 
 @Injectable()
@@ -79,7 +89,7 @@ export class AuthService {
     });
 
     return {
-      accessToken: await this.signToken(user),
+      ...(await this.issueTokenPair(user)),
       user: this.toSafeUser(user),
       company: {
         id: company.id,
@@ -87,6 +97,41 @@ export class AuthService {
         document: company.document,
         documentType: company.documentType,
       },
+    };
+  }
+
+  async login(dto: LoginDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    // Same generic message for "no such user", "Google-only account" (no
+    // passwordHash to compare against) and "wrong password" — never confirm
+    // which one it was, that's a user-enumeration/credential-guessing leak.
+    const invalidCredentials = () =>
+      new UnauthorizedException('E-mail ou senha inválidos.');
+
+    if (!user || !user.passwordHash) {
+      throw invalidCredentials();
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
+    if (!passwordMatches) {
+      throw invalidCredentials();
+    }
+
+    if (!user.active) {
+      throw new UnauthorizedException(
+        'Esta conta foi desativada. Fale com o administrador do escritório.',
+      );
+    }
+
+    return {
+      ...(await this.issueTokenPair(user)),
+      user: this.toSafeUser(user),
     };
   }
 
@@ -131,7 +176,7 @@ export class AuthService {
       });
     }
 
-    return { status: 'authenticated', accessToken: await this.signToken(user) };
+    return { status: 'authenticated', ...(await this.issueTokenPair(user)) };
   }
 
   /** Finishes a brand-new Google signup once the company document is known. */
@@ -177,7 +222,7 @@ export class AuthService {
     });
 
     return {
-      accessToken: await this.signToken(user),
+      ...(await this.issueTokenPair(user)),
       user: this.toSafeUser(user),
     };
   }
@@ -207,6 +252,65 @@ export class AuthService {
     return payload;
   }
 
+  /**
+   * Renews an access token from a still-valid refresh token, rotating it in
+   * the same move (the caller must start using the returned refreshToken —
+   * the one it sent is revoked here). Rotation lets a reuse of an
+   * already-consumed token be detected below and treated as a stolen token,
+   * rather than only ever growing the token's blast radius over 30 days.
+   */
+  async refreshTokens(rawToken: string): Promise<TokenPair> {
+    const tokenHash = this.hashToken(rawToken);
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!stored) {
+      throw new UnauthorizedException('Sessão expirada. Faça login novamente.');
+    }
+
+    if (stored.revokedAt) {
+      // This token was already rotated away (or explicitly revoked) once —
+      // seeing it again means it leaked. Kill every refresh token on the
+      // account so both the thief and the legitimate user are forced back
+      // through login, rather than trusting a chain that's proven unsafe.
+      await this.prisma.refreshToken.updateMany({
+        where: { userId: stored.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      throw new UnauthorizedException('Sessão expirada. Faça login novamente.');
+    }
+
+    if (stored.expiresAt < new Date()) {
+      throw new UnauthorizedException('Sessão expirada. Faça login novamente.');
+    }
+
+    await this.prisma.refreshToken.update({
+      where: { id: stored.id },
+      data: { revokedAt: new Date() },
+    });
+
+    return this.issueTokenPair(stored.user);
+  }
+
+  /** Revokes a single refresh token (e.g. on logout) without touching the rest of the account's sessions. */
+  async revokeRefreshToken(rawToken: string): Promise<void> {
+    const tokenHash = this.hashToken(rawToken);
+    await this.prisma.refreshToken.updateMany({
+      where: { tokenHash, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  private async issueTokenPair(user: User): Promise<TokenPair> {
+    const [accessToken, refreshToken] = await Promise.all([
+      this.signToken(user),
+      this.issueRefreshToken(user.id),
+    ]);
+    return { accessToken, refreshToken };
+  }
+
   private signToken(user: User): Promise<string> {
     return this.jwt.signAsync({
       sub: user.id,
@@ -214,6 +318,31 @@ export class AuthService {
       role: user.role,
       companyId: user.companyId,
     });
+  }
+
+  private async issueRefreshToken(userId: string): Promise<string> {
+    const rawToken = randomBytes(REFRESH_TOKEN_BYTES).toString('hex');
+    const ttlDays =
+      Number(this.config.get<string>('REFRESH_TOKEN_TTL_DAYS')) ||
+      DEFAULT_REFRESH_TOKEN_TTL_DAYS;
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + ttlDays);
+
+    await this.prisma.refreshToken.create({
+      data: { tokenHash: this.hashToken(rawToken), userId, expiresAt },
+    });
+
+    return rawToken;
+  }
+
+  /**
+   * Refresh tokens are high-entropy random values, not low-entropy secrets
+   * like passwords — a fast, deterministic hash (rather than bcrypt) is the
+   * right tool here, since it's what makes an indexed `tokenHash` lookup
+   * possible at all.
+   */
+  private hashToken(rawToken: string): string {
+    return createHash('sha256').update(rawToken).digest('hex');
   }
 
   private toSafeUser(user: User) {
