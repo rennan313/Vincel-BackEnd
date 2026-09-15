@@ -58,6 +58,7 @@ model Company {
   agendaTasks              AgendaTask[]
   timeEntries              TimeEntry[]
   scheduleStatusCategories ScheduleStatusCategory[]
+  briefingQuestions        BriefingQuestion[]
 }
 
 // User-defined categories for the Cronograma's schedule-adherence
@@ -308,6 +309,7 @@ model Project {
   expenses      ProjectExpense[]
   documents     ProjectDocument[]
   timeEntries   TimeEntry[]
+  briefing      ProjectBriefing?
 
   startDate DateTime?
   endDate   DateTime?
@@ -417,6 +419,66 @@ model ProjectDocument {
   updatedAt  DateTime @updatedAt
 
   @@index([projectId])
+}
+
+enum BriefingQuestionType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  DATE
+  LINKS
+}
+
+// The office's own customizable briefing form — a flat, ordered list per
+// company, edited from Configurações (see companies.controller's
+// briefing-questions routes) and reused for every project. Seeded with a
+// default set the first time a company's list is fetched empty (see
+// BriefingQuestionsService.listForCompany) rather than at company
+// creation, so existing companies pick up the same defaults on first use.
+model BriefingQuestion {
+  id        String               @id @default(auto()) @map("_id") @db.ObjectId
+  companyId String               @db.ObjectId
+  company   Company              @relation(fields: [companyId], references: [id])
+  section   String
+  label     String
+  type      BriefingQuestionType
+  order     Int
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@index([companyId])
+}
+
+// One submitted answer. Deliberately holds only the questionId, not a
+// snapshot of its label/type/section — those are resolved live against
+// the company's current BriefingQuestion list when displayed, so editing
+// a question later relabels old answers too (same as most form builders).
+// A question deleted after being answered just won't resolve — its
+// answers are orphaned rather than shown, an accepted v1 gap.
+type BriefingAnswer {
+  questionId String
+  // Scalar answer (TEXT/TEXTAREA/NUMBER-as-string/DATE-as-ISO-string).
+  value      String?
+  // Multi-value answer, only meaningful for LINKS questions.
+  values     String[]
+}
+
+// The client's own answers about their new project — filled by them
+// through the public link (GET/POST .../briefing/public, no auth), read
+// by the office in-app (GET .../briefing, authenticated). One per project;
+// a re-submission just overwrites the previous answers, so there's no
+// history of edits.
+model ProjectBriefing {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String           @unique @db.ObjectId
+  project   Project          @relation(fields: [projectId], references: [id])
+  answers   BriefingAnswer[]
+
+  // Null until the client actually submits the form once — lets the
+  // office tell "not sent yet" apart from "sent but left everything blank".
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 // Shared reference data: no companyId, managed only by VINCEL_ADMIN via the

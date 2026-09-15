@@ -9,6 +9,8 @@ import sharp from 'sharp';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { resolveCompanyId } from '../common/company-scope';
 import { PrismaService } from '../prisma/prisma.service';
+import { DEFAULT_BRIEFING_QUESTIONS } from './default-briefing-questions';
+import { ReplaceBriefingQuestionsDto } from './dto/replace-briefing-questions.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 
 export interface CompanyPublicProfile {
@@ -171,5 +173,102 @@ export class CompaniesService {
       .bucket(this.bucketName)
       .file(this.logoStorageKey(id));
     return { stream: file.createReadStream() };
+  }
+
+  /** The company's briefing form, ordered. Seeds the built-in defaults the
+   * first time it's fetched with nothing saved yet — used both by the
+   * admin's Configurações screen and, via companyId directly, by the
+   * public briefing page (ProjectBriefingService has no authenticated
+   * user to resolve a companyId from). */
+  async listBriefingQuestions(companyId: string) {
+    const existing = await this.prisma.briefingQuestion.findMany({
+      where: { companyId },
+      orderBy: { order: 'asc' },
+    });
+    if (existing.length > 0) return existing;
+
+    await this.prisma.briefingQuestion.createMany({
+      data: DEFAULT_BRIEFING_QUESTIONS.map((question, index) => ({
+        ...question,
+        companyId,
+        order: index,
+      })),
+    });
+    return this.prisma.briefingQuestion.findMany({
+      where: { companyId },
+      orderBy: { order: 'asc' },
+    });
+  }
+
+  async listOwnBriefingQuestions(currentUser: AuthenticatedUser) {
+    return this.listBriefingQuestions(resolveCompanyId(currentUser));
+  }
+
+  /**
+   * Full replace: existing questions keep their id (so past answers —
+   * which reference questionId, not a label snapshot — stay attached) and
+   * are updated in place; questions with no id are new; any existing
+   * question missing from the incoming list is deleted (orphaning its
+   * past answers, which is the point of deleting a question).
+   */
+  async replaceOwnBriefingQuestions(
+    currentUser: AuthenticatedUser,
+    dto: ReplaceBriefingQuestionsDto,
+  ) {
+    const companyId = resolveCompanyId(currentUser);
+    const existingIds = new Set(
+      (
+        await this.prisma.briefingQuestion.findMany({
+          where: { companyId },
+          select: { id: true },
+        })
+      ).map((question) => question.id),
+    );
+
+    for (const question of dto.questions) {
+      if (question.id && !existingIds.has(question.id)) {
+        throw new BadRequestException('Pergunta não encontrada.');
+      }
+    }
+
+    const incomingIds = new Set(
+      dto.questions
+        .filter((question) => question.id)
+        .map((question) => question.id!),
+    );
+    const idsToDelete = [...existingIds].filter((id) => !incomingIds.has(id));
+
+    await this.prisma.$transaction([
+      ...(idsToDelete.length > 0
+        ? [
+            this.prisma.briefingQuestion.deleteMany({
+              where: { id: { in: idsToDelete } },
+            }),
+          ]
+        : []),
+      ...dto.questions.map((question, index) =>
+        question.id
+          ? this.prisma.briefingQuestion.update({
+              where: { id: question.id },
+              data: {
+                section: question.section,
+                label: question.label,
+                type: question.type,
+                order: index,
+              },
+            })
+          : this.prisma.briefingQuestion.create({
+              data: {
+                companyId,
+                section: question.section,
+                label: question.label,
+                type: question.type,
+                order: index,
+              },
+            }),
+      ),
+    ]);
+
+    return this.listBriefingQuestions(companyId);
   }
 }

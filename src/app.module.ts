@@ -13,6 +13,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
 import { ProjectDocumentsModule } from './project-documents/project-documents.module';
+import { ProjectBriefingModule } from './project-briefing/project-briefing.module';
 import { ProjectExpensesModule } from './project-expenses/project-expenses.module';
 import { ProjectMaterialsModule } from './project-materials/project-materials.module';
 import { ProjectProvidersModule } from './project-providers/project-providers.module';
@@ -41,6 +42,7 @@ import { UsersModule } from './users/users.module';
     ProjectMaterialsModule,
     ProjectExpensesModule,
     ProjectDocumentsModule,
+    ProjectBriefingModule,
     ServicesModule,
     SuppliersModule,
     ProductsModule,
