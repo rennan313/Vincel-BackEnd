@@ -28,6 +28,11 @@ export const DEFAULT_BRIEFING_QUESTIONS: Array<{
     type: BriefingQuestionType.TEXTAREA,
   },
   {
+    section: 'Itens para reaproveitar',
+    label: 'Envie fotos dos móveis/objetos que deseja manter ou reaproveitar',
+    type: BriefingQuestionType.PHOTOS,
+  },
+  {
     section: 'Estilo e referências',
     label:
       'Qual estilo você prefere? (moderno, clássico, minimalista, industrial, outro)',

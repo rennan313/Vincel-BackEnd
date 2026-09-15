@@ -427,6 +427,10 @@ enum BriefingQuestionType {
   NUMBER
   DATE
   LINKS
+  // Client uploads photos of existing items/furniture they want to keep
+  // or reuse — stored the same way as LINKS (BriefingAnswer.values), just
+  // populated by POST .../briefing/public/photos instead of typed in.
+  PHOTOS
 }
 
 // The office's own customizable briefing form — a flat, ordered list per
