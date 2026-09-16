@@ -108,6 +108,12 @@ model Client {
   type      ClientType
   document  String?
   address   ClientAddress?
+  // Hashed (bcryptjs), set by an ADMIN via PATCH /clients/:id — null means
+  // this client has no portal login yet. No @unique here (email itself
+  // isn't unique across Clients — see ClientsService), so the client-auth
+  // login lookup enforces "email unique among password-bearing clients"
+  // at the application level instead.
+  password  String?
   active    Boolean        @default(true)
   companyId String         @db.ObjectId
   company   Company        @relation(fields: [companyId], references: [id])
@@ -133,6 +139,19 @@ enum Complexity {
   HIGH
 }
 
+// A single checklist-style item on a PlanningPhase's task board — the
+// etapa is the "card" (Cronograma tab, Jira-like), this is one of its
+// tasks. id/createdAt are generated client-side, same as PlanningPhase's
+// own key — there's no dedicated endpoint for these, they ride along with
+// the phase inside the same PATCH /projects/:id { planningPhases }.
+type PhaseTask {
+  id          String
+  title       String
+  description String?
+  done        Boolean  @default(false)
+  createdAt   DateTime
+}
+
 type PlanningPhase {
   key           String
   name          String
@@ -152,6 +171,9 @@ type PlanningPhase {
   // Hours already worked on this task. Manually edited for now; a future
   // sidebar timer will be able to add to this automatically instead.
   loggedHours    Float?
+  // This etapa's own task board (Cronograma tab) — a Jira-card-style
+  // checklist, shown in an accordion per etapa.
+  tasks          PhaseTask[]
 }
 
 // How honorários is calculated — per_sqm (rate × área) or per_hour (rate × estimatedHours).
