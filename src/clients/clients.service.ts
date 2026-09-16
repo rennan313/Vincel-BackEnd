@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, UserRole, type Client } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { resolveCompanyId } from '../common/company-scope';
 import { PrismaService } from '../prisma/prisma.service';
@@ -7,6 +12,8 @@ import { CreateClientDto } from './dto/create-client.dto';
 import { CreatePublicClientDto } from './dto/create-public-client.dto';
 import { ListClientsDto } from './dto/list-clients.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+
+const SALT_ROUNDS = 10;
 
 @Injectable()
 export class ClientsService {
@@ -36,13 +43,21 @@ export class ClientsService {
       this.prisma.client.count({ where }),
     ]);
 
-    return { data, total, page: query.page, pageSize: query.pageSize };
+    return {
+      data: data.map((client) => this.toSafeClient(client)),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
   }
 
   async create(currentUser: AuthenticatedUser, dto: CreateClientDto) {
     const companyId = resolveCompanyId(currentUser, dto.companyId);
+    const password = dto.password
+      ? await this.hashClientPassword(dto.password, dto.email)
+      : undefined;
 
-    return this.prisma.client.create({
+    const client = await this.prisma.client.create({
       data: {
         name: dto.name,
         email: dto.email,
@@ -50,10 +65,12 @@ export class ClientsService {
         type: dto.type,
         document: dto.document,
         address: dto.address,
+        password,
         companyId,
         deletedAt: null,
       },
     });
+    return this.toSafeClient(client);
   }
 
   /**
@@ -68,17 +85,20 @@ export class ClientsService {
     if (!company || company.deletedAt) {
       throw new NotFoundException('Escritório não encontrado.');
     }
+    const password = await this.hashClientPassword(dto.password, dto.email);
 
-    return this.prisma.client.create({
+    const client = await this.prisma.client.create({
       data: {
         name: dto.name,
         email: dto.email,
         phone: dto.phone,
         type: dto.type,
+        password,
         companyId: dto.companyId,
         deletedAt: null,
       },
     });
+    return this.toSafeClient(client);
   }
 
   async update(
@@ -86,9 +106,16 @@ export class ClientsService {
     id: string,
     dto: UpdateClientDto,
   ) {
-    await this.findScoped(currentUser, id);
+    const existing = await this.findScoped(currentUser, id);
+    const password = dto.password
+      ? await this.hashClientPassword(
+          dto.password,
+          dto.email ?? existing.email,
+          id,
+        )
+      : undefined;
 
-    return this.prisma.client.update({
+    const client = await this.prisma.client.update({
       where: { id },
       data: {
         name: dto.name,
@@ -97,13 +124,63 @@ export class ClientsService {
         type: dto.type,
         document: dto.document,
         address: dto.address,
+        password,
       },
     });
+    return this.toSafeClient(client);
   }
 
   async setActive(currentUser: AuthenticatedUser, id: string, active: boolean) {
     await this.findScoped(currentUser, id);
-    return this.prisma.client.update({ where: { id }, data: { active } });
+    const client = await this.prisma.client.update({
+      where: { id },
+      data: { active },
+    });
+    return this.toSafeClient(client);
+  }
+
+  private toSafeClient(client: Client) {
+    return {
+      id: client.id,
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      type: client.type,
+      document: client.document,
+      address: client.address,
+      active: client.active,
+      companyId: client.companyId,
+      createdAt: client.createdAt,
+      updatedAt: client.updatedAt,
+    };
+  }
+
+  /**
+   * email has no @unique on Client — a client can be a denormalized
+   * contact record with the same address book entry duplicated by
+   * mistake, and that's fine as long as it can't log in. Once a password
+   * is set, though, that email must resolve to exactly one client-auth
+   * account, so this enforces uniqueness only among password-bearing
+   * clients (see client-auth.service.ts's login lookup).
+   */
+  private async hashClientPassword(
+    password: string,
+    email: string,
+    excludeClientId?: string,
+  ): Promise<string> {
+    const existing = await this.prisma.client.findFirst({
+      where: {
+        email,
+        password: { not: null },
+        ...(excludeClientId ? { id: { not: excludeClientId } } : {}),
+      },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'Já existe um acesso de cliente com este e-mail.',
+      );
+    }
+    return bcrypt.hash(password, SALT_ROUNDS);
   }
 
   private async findScoped(

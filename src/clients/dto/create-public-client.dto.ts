@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsMongoId,
   IsString,
+  Matches,
   MinLength,
 } from 'class-validator';
 
@@ -32,4 +33,19 @@ export class CreatePublicClientDto {
   @ApiProperty({ enum: ClientType, example: ClientType.PF })
   @IsEnum(ClientType, { message: 'Tipo inválido.' })
   type: ClientType;
+
+  @ApiProperty({
+    minLength: 8,
+    description:
+      'Senha do portal do cliente (client-auth) — mín. 8 caracteres, com maiúscula, minúscula e número.',
+  })
+  @MinLength(8, { message: 'A senha deve ter pelo menos 8 caracteres.' })
+  @Matches(/[A-Z]/, {
+    message: 'A senha deve conter ao menos uma letra maiúscula.',
+  })
+  @Matches(/[a-z]/, {
+    message: 'A senha deve conter ao menos uma letra minúscula.',
+  })
+  @Matches(/[0-9]/, { message: 'A senha deve conter ao menos um número.' })
+  password: string;
 }

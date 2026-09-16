@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AgendaTasksModule } from './agenda-tasks/agenda-tasks.module';
 import { AuthModule } from './auth/auth.module';
+import { ClientAuthModule } from './client-auth/client-auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { CompaniesModule } from './companies/companies.module';
 import { LeroyMerlinModule } from './leroy-merlin/leroy-merlin.module';
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
+    ClientAuthModule,
     UsersModule,
     ClientsModule,
     CompaniesModule,
