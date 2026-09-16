@@ -15,6 +15,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { ClientsService } from './clients.service';
+import { CheckPublicClientEmailDto } from './dto/check-public-client-email.dto';
 import { CreateClientDto } from './dto/create-client.dto';
 import { CreatePublicClientDto } from './dto/create-public-client.dto';
 import { ListClientsDto } from './dto/list-clients.dto';
@@ -58,6 +59,15 @@ export class ClientsController {
   })
   registerPublic(@Body() dto: CreatePublicClientDto) {
     return this.clientsService.registerPublic(dto);
+  }
+
+  @Get('public/email-exists')
+  @ApiOperation({
+    summary:
+      'Verifica se já existe acesso de cliente (client-auth) para este e-mail, antes do autocadastro público ser enviado.',
+  })
+  checkPublicEmailExists(@Query() dto: CheckPublicClientEmailDto) {
+    return this.clientsService.checkPublicEmailExists(dto.email);
   }
 
   @Patch(':id')

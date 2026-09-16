@@ -59,6 +59,7 @@ model Company {
   timeEntries              TimeEntry[]
   scheduleStatusCategories ScheduleStatusCategory[]
   briefingQuestions        BriefingQuestion[]
+  projectRequests          ProjectRequest[]
 }
 
 // User-defined categories for the Cronograma's schedule-adherence
@@ -121,7 +122,31 @@ model Client {
   updatedAt DateTime       @updatedAt
   deletedAt DateTime?
 
-  projects Project[]
+  projects        Project[]
+  projectRequests ProjectRequest[]
+
+  @@index([companyId])
+}
+
+enum ProjectRequestStatus {
+  new
+  read
+}
+
+// The client portal's "Solicitar um projeto" button (shown only when a
+// logged-in Client has no projects yet) — a lead asking the escritório
+// for contact, not a real Project. Surfaced to staff via
+// GET /project-requests; PATCH .../:id/read dismisses it once handled.
+model ProjectRequest {
+  id        String               @id @default(auto()) @map("_id") @db.ObjectId
+  clientId  String               @db.ObjectId
+  client    Client               @relation(fields: [clientId], references: [id])
+  companyId String               @db.ObjectId
+  company   Company              @relation(fields: [companyId], references: [id])
+  message   String?
+  status    ProjectRequestStatus @default(new)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
 
   @@index([companyId])
 }

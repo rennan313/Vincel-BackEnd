@@ -18,6 +18,7 @@ import { ProjectBriefingModule } from './project-briefing/project-briefing.modul
 import { ProjectExpensesModule } from './project-expenses/project-expenses.module';
 import { ProjectMaterialsModule } from './project-materials/project-materials.module';
 import { ProjectProvidersModule } from './project-providers/project-providers.module';
+import { ProjectRequestsModule } from './project-requests/project-requests.module';
 import { ProjectTypesModule } from './project-types/project-types.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ProvidersModule } from './providers/providers.module';
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     ProjectExpensesModule,
     ProjectDocumentsModule,
     ProjectBriefingModule,
+    ProjectRequestsModule,
     ServicesModule,
     SuppliersModule,
     ProductsModule,

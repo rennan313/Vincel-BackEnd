@@ -4,6 +4,7 @@ import type { Client } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClientLoginDto } from './dto/client-login.dto';
+import { CreateProjectRequestDto } from './dto/create-project-request.dto';
 import { UpdateClientPasswordDto } from './dto/update-client-password.dto';
 import type { AuthenticatedClient } from './strategies/client-jwt.strategy';
 
@@ -115,6 +116,26 @@ export class ClientAuthService {
     await this.prisma.client.update({
       where: { id: client.id },
       data: { password: passwordHash },
+    });
+  }
+
+  /**
+   * The client portal's "Solicitar um projeto" button — a lead, not a real
+   * Project. The front only shows the button when the client has none yet,
+   * but nothing stops a client with existing projects from asking for
+   * another one, so this doesn't re-check that.
+   */
+  async createProjectRequest(
+    currentClient: AuthenticatedClient,
+    dto: CreateProjectRequestDto,
+  ) {
+    await this.findActive(currentClient);
+    return this.prisma.projectRequest.create({
+      data: {
+        clientId: currentClient.id,
+        companyId: currentClient.companyId,
+        message: dto.message,
+      },
     });
   }
 

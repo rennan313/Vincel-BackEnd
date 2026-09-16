@@ -12,6 +12,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ClientAuthService } from './client-auth.service';
 import { CurrentClient } from './decorators/current-client.decorator';
 import { ClientLoginDto } from './dto/client-login.dto';
+import { CreateProjectRequestDto } from './dto/create-project-request.dto';
 import { UpdateClientPasswordDto } from './dto/update-client-password.dto';
 import { ClientJwtAuthGuard } from './guards/client-jwt-auth.guard';
 import type { AuthenticatedClient } from './strategies/client-jwt.strategy';
@@ -58,5 +59,20 @@ export class ClientAuthController {
     @Body() dto: UpdateClientPasswordDto,
   ) {
     await this.clientAuthService.updatePassword(currentClient, dto);
+  }
+
+  @Post('me/project-requests')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth()
+  @UseGuards(ClientJwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Solicita um projeto — vira um lead para o escritório entrar em contato (GET /project-requests).',
+  })
+  createProjectRequest(
+    @CurrentClient() currentClient: AuthenticatedClient,
+    @Body() dto: CreateProjectRequestDto,
+  ) {
+    return this.clientAuthService.createProjectRequest(currentClient, dto);
   }
 }
