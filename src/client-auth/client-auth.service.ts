@@ -66,6 +66,9 @@ export class ClientAuthService {
 
   async myProjects(currentClient: AuthenticatedClient) {
     await this.findActive(currentClient);
+    // Explicit select, not the raw document — a client never sees the
+    // office's own business terms for the job (honorários, orçamento,
+    // parcelas, forma de pagamento), only their own schedule/progress.
     return this.prisma.project.findMany({
       where: {
         clientId: currentClient.id,
@@ -73,6 +76,21 @@ export class ClientAuthService {
         deletedAt: null,
       },
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        customType: true,
+        areaSqm: true,
+        status: true,
+        complexity: true,
+        planningPhases: true,
+        startDate: true,
+        endDate: true,
+        scheduleStatusCategoryId: true,
+        address: true,
+        createdAt: true,
+      },
     });
   }
 
