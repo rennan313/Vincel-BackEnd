@@ -101,6 +101,20 @@ export class ClientsService {
     return this.toSafeClient(client);
   }
 
+  /**
+   * Lets the public self-registration form warn the visitor before they
+   * fill out the whole form: mirrors hashClientPassword's actual
+   * uniqueness check (password-bearing clients only, global — not scoped
+   * to companyId, since that's the real constraint a submit would hit).
+   */
+  async checkPublicEmailExists(email: string): Promise<{ exists: boolean }> {
+    const existing = await this.prisma.client.findFirst({
+      where: { email, password: { not: null } },
+      select: { id: true },
+    });
+    return { exists: !!existing };
+  }
+
   async update(
     currentUser: AuthenticatedUser,
     id: string,
