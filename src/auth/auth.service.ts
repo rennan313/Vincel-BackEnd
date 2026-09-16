@@ -317,6 +317,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       companyId: user.companyId,
+      type: 'staff',
     });
   }
 

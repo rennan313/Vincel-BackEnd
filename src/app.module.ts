@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AgendaTasksModule } from './agenda-tasks/agenda-tasks.module';
 import { AuthModule } from './auth/auth.module';
+import { ClientAuthModule } from './client-auth/client-auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { CompaniesModule } from './companies/companies.module';
 import { LeroyMerlinModule } from './leroy-merlin/leroy-merlin.module';
@@ -13,6 +14,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
 import { ProjectDocumentsModule } from './project-documents/project-documents.module';
+import { ProjectBriefingModule } from './project-briefing/project-briefing.module';
 import { ProjectExpensesModule } from './project-expenses/project-expenses.module';
 import { ProjectMaterialsModule } from './project-materials/project-materials.module';
 import { ProjectProvidersModule } from './project-providers/project-providers.module';
@@ -31,6 +33,7 @@ import { UsersModule } from './users/users.module';
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
+    ClientAuthModule,
     UsersModule,
     ClientsModule,
     CompaniesModule,
@@ -41,6 +44,7 @@ import { UsersModule } from './users/users.module';
     ProjectMaterialsModule,
     ProjectExpensesModule,
     ProjectDocumentsModule,
+    ProjectBriefingModule,
     ServicesModule,
     SuppliersModule,
     ProductsModule,

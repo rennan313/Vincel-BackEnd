@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsDateString,
   IsInt,
   IsNumber,
@@ -7,7 +9,9 @@ import {
   IsString,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { PhaseTaskDto } from './phase-task.dto';
 
 export class PlanningPhaseDto {
   @ApiProperty({
@@ -64,4 +68,11 @@ export class PlanningPhaseDto {
   @IsNumber()
   @Min(0)
   loggedHours?: number;
+
+  @ApiPropertyOptional({ type: [PhaseTaskDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PhaseTaskDto)
+  tasks?: PhaseTaskDto[];
 }

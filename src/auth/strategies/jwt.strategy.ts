@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -9,6 +9,14 @@ export interface JwtPayload {
   email: string;
   role: UserRole;
   companyId: string | null;
+  // Discriminates a staff access token from a client-portal one (see
+  // ClientJwtPayload/ClientJwtStrategy) — both are signed with the same
+  // JWT_SECRET, so this is what actually keeps a client's "weak" token
+  // from being accepted here (and vice versa), not just the shape of the
+  // payload. Optional only so a token issued before this field existed
+  // isn't rejected mid-flight — those are all short-lived (15m) access
+  // tokens anyway, so this is purely transitional.
+  type?: 'staff';
 }
 
 export interface AuthenticatedUser {
@@ -29,6 +37,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   validate(payload: JwtPayload): AuthenticatedUser {
+    if (payload.type && payload.type !== 'staff') {
+      throw new UnauthorizedException();
+    }
     return {
       id: payload.sub,
       email: payload.email,

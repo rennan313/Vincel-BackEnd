@@ -10,12 +10,17 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 
 // PlanningPhaseDto.startDate is an ISO string (validated by @IsDateString);
 // the embedded PlanningPhase.startDate is a real DateTime, so each phase
-// needs the same string -> Date conversion applied to the top-level dates.
+// (and each of its tasks' createdAt) needs the same string -> Date
+// conversion applied to the top-level dates.
 function mapPlanningPhases(phases?: PlanningPhaseDto[]) {
   return phases?.map((phase) => ({
     ...phase,
     startDate: phase.startDate ? new Date(phase.startDate) : undefined,
     endDate: phase.endDate ? new Date(phase.endDate) : undefined,
+    tasks: phase.tasks?.map((task) => ({
+      ...task,
+      createdAt: new Date(task.createdAt),
+    })),
   }));
 }
 

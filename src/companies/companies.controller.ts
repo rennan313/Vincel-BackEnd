@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Req,
   Res,
   UploadedFile,
@@ -27,6 +28,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { CompaniesService } from './companies.service';
+import { ReplaceBriefingQuestionsDto } from './dto/replace-briefing-questions.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 
 const MAX_LOGO_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -112,5 +114,32 @@ export class CompaniesController {
   @ApiOperation({ summary: 'Remove o logo do escritório do usuário logado.' })
   removeLogo(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.companiesService.removeLogo(currentUser);
+  }
+
+  @Get('me/briefing-questions')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary:
+      'Lista as perguntas do formulário de brifing do escritório (semeia os padrões na primeira vez).',
+  })
+  listBriefingQuestions(@CurrentUser() currentUser: AuthenticatedUser) {
+    return this.companiesService.listOwnBriefingQuestions(currentUser);
+  }
+
+  @Put('me/briefing-questions')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary:
+      'Substitui a lista inteira de perguntas do brifing (adicionar/editar/remover/reordenar).',
+  })
+  replaceBriefingQuestions(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Body() dto: ReplaceBriefingQuestionsDto,
+  ) {
+    return this.companiesService.replaceOwnBriefingQuestions(currentUser, dto);
   }
 }
