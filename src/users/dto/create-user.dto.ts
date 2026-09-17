@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import {
   IsEmail,
+  IsHexColor,
   IsIn,
   IsMongoId,
   IsOptional,
@@ -52,4 +53,13 @@ export class CreateUserDto {
   @IsOptional()
   @IsMongoId()
   companyId?: string;
+
+  @ApiPropertyOptional({
+    example: '#f59e0b',
+    description:
+      'Identifica este usuário nas tasks do Cronograma às quais é responsável.',
+  })
+  @IsOptional()
+  @IsHexColor({ message: 'Informe uma cor válida.' })
+  color?: string;
 }
