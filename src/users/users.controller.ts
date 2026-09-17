@@ -40,6 +40,20 @@ export class UsersController {
     return this.usersService.list(currentUser, query);
   }
 
+  // @Roles() with no arguments overrides the class-level ADMIN/VINCEL_ADMIN
+  // restriction for this one route (RolesGuard treats an empty list as "no
+  // restriction") — any authenticated staff member needs this to populate
+  // the Cronograma task's "Responsável" picker, not just admins.
+  @Get('assignable')
+  @Roles()
+  @ApiOperation({
+    summary:
+      'Lista enxuta (id, nome, cor) dos usuários ativos do escritório — para o seletor de responsável de uma task do Cronograma, acessível a qualquer membro autenticado.',
+  })
+  listAssignable(@CurrentUser() currentUser: AuthenticatedUser) {
+    return this.usersService.listAssignable(currentUser);
+  }
+
   @Post()
   @ApiOperation({ summary: 'Cria um usuário no escritório.' })
   create(

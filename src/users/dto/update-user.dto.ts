@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import {
   IsEmail,
+  IsHexColor,
   IsIn,
   IsOptional,
   IsString,
@@ -31,4 +32,13 @@ export class UpdateUserDto {
   @IsOptional()
   @IsIn(ASSIGNABLE_ROLES, { message: 'Perfil inválido.' })
   role?: (typeof ASSIGNABLE_ROLES)[number];
+
+  @ApiPropertyOptional({
+    example: '#f59e0b',
+    description:
+      'Identifica este usuário nas tasks do Cronograma às quais é responsável.',
+  })
+  @IsOptional()
+  @IsHexColor({ message: 'Informe uma cor válida.' })
+  color?: string;
 }

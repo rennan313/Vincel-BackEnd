@@ -21,6 +21,7 @@ const SAFE_SELECT = {
   email: true,
   role: true,
   active: true,
+  color: true,
   companyId: true,
   createdAt: true,
   updatedAt: true,
@@ -77,6 +78,7 @@ export class UsersService {
         email: dto.email,
         passwordHash,
         role: dto.role,
+        color: dto.color,
         companyId,
       },
       select: SAFE_SELECT,
@@ -97,8 +99,28 @@ export class UsersService {
 
     return this.prisma.user.update({
       where: { id },
-      data: { name: dto.name, email: dto.email, role: dto.role },
+      data: {
+        name: dto.name,
+        email: dto.email,
+        role: dto.role,
+        color: dto.color,
+      },
       select: SAFE_SELECT,
+    });
+  }
+
+  /** Lightweight, non-admin-gated read for the Cronograma's "Responsável"
+   * picker (see UsersController.listAssignable) — active teammates only,
+   * just enough to render the colored dot next to a task. No `deletedAt`
+   * filter here: there's no delete-user flow (only activate/deactivate),
+   * so `create()` never sets that field at all — filtering by `active`
+   * alone is the real signal, matching every other read in this service. */
+  async listAssignable(currentUser: AuthenticatedUser) {
+    const companyId = resolveCompanyId(currentUser);
+    return this.prisma.user.findMany({
+      where: { companyId, active: true },
+      select: { id: true, name: true, color: true },
+      orderBy: { name: 'asc' },
     });
   }
 
