@@ -122,7 +122,7 @@ export class CompaniesController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({
     summary:
-      'Lista as perguntas do formulário de brifing do escritório (semeia os padrões na primeira vez).',
+      'Lista as perguntas do formulário de briefing do escritório (semeia os padrões na primeira vez).',
   })
   listBriefingQuestions(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.companiesService.listOwnBriefingQuestions(currentUser);
@@ -134,7 +134,7 @@ export class CompaniesController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({
     summary:
-      'Substitui a lista inteira de perguntas do brifing (adicionar/editar/remover/reordenar).',
+      'Substitui a lista inteira de perguntas do briefing (adicionar/editar/remover/reordenar).',
   })
   replaceBriefingQuestions(
     @CurrentUser() currentUser: AuthenticatedUser,

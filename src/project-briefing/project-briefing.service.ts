@@ -10,6 +10,7 @@ import sharp from 'sharp';
 import { UserRole, type Project } from '@prisma/client';
 import { CompaniesService } from '../companies/companies.service';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import type { AuthenticatedClient } from '../client-auth/strategies/client-jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubmitProjectBriefingDto } from './dto/submit-project-briefing.dto';
 
@@ -64,7 +65,24 @@ export class ProjectBriefingService {
 
   async submitPublic(projectId: string, dto: SubmitProjectBriefingDto) {
     const project = await this.findActiveProject(projectId);
+    return this.submitAnswers(project, dto);
+  }
 
+  /** Same submit, but scoped to a client-portal session's own linked
+   * project instead of a bare (unauthenticated) projectId. */
+  async submitForClient(
+    currentClient: AuthenticatedClient,
+    projectId: string,
+    dto: SubmitProjectBriefingDto,
+  ) {
+    const project = await this.assertProjectScopedToClient(
+      currentClient,
+      projectId,
+    );
+    return this.submitAnswers(project, dto);
+  }
+
+  private async submitAnswers(project: Project, dto: SubmitProjectBriefingDto) {
     // Answers for a question this company no longer has are dropped
     // rather than stored orphaned — the questionId came from the form the
     // client was just shown, but a submission racing an admin edit could
@@ -83,8 +101,8 @@ export class ProjectBriefingService {
       }));
 
     return this.prisma.projectBriefing.upsert({
-      where: { projectId },
-      create: { projectId, answers, submittedAt: new Date() },
+      where: { projectId: project.id },
+      create: { projectId: project.id, answers, submittedAt: new Date() },
       update: { answers, submittedAt: new Date() },
     });
   }
@@ -110,6 +128,32 @@ export class ProjectBriefingService {
     file: Express.Multer.File | undefined,
     origin: string,
   ) {
+    const project = await this.findActiveProject(projectId);
+    return this.uploadPhoto(project, questionId, file, origin);
+  }
+
+  /** Same upload, but scoped to a client-portal session's own linked
+   * project instead of a bare (unauthenticated) projectId. */
+  async uploadPhotoForClient(
+    currentClient: AuthenticatedClient,
+    projectId: string,
+    questionId: string | undefined,
+    file: Express.Multer.File | undefined,
+    origin: string,
+  ) {
+    const project = await this.assertProjectScopedToClient(
+      currentClient,
+      projectId,
+    );
+    return this.uploadPhoto(project, questionId, file, origin);
+  }
+
+  private async uploadPhoto(
+    project: Project,
+    questionId: string | undefined,
+    file: Express.Multer.File | undefined,
+    origin: string,
+  ) {
     if (!file) {
       throw new BadRequestException('Envie uma imagem.');
     }
@@ -122,7 +166,6 @@ export class ProjectBriefingService {
       throw new BadRequestException('Informe a pergunta (questionId).');
     }
 
-    const project = await this.findActiveProject(projectId);
     const validQuestionIds = new Set(
       (
         await this.companiesService.listBriefingQuestions(project.companyId)
@@ -141,14 +184,14 @@ export class ProjectBriefingService {
       .toBuffer();
 
     const fileId = randomUUID();
-    const storageKey = this.photoStorageKey(projectId, questionId, fileId);
+    const storageKey = this.photoStorageKey(project.id, questionId, fileId);
     await this.storage.bucket(this.bucketName).file(storageKey).save(resized, {
       contentType: 'image/jpeg',
       resumable: false,
     });
 
     return {
-      url: `${origin}/projects/${projectId}/briefing/photos/${questionId}/${fileId}`,
+      url: `${origin}/projects/${project.id}/briefing/photos/${questionId}/${fileId}`,
     };
   }
 
@@ -168,9 +211,26 @@ export class ProjectBriefingService {
    * project exists but the client hasn't submitted one yet. */
   async getForCompany(currentUser: AuthenticatedUser, projectId: string) {
     const project = await this.assertProjectScoped(currentUser, projectId);
+    return this.getQuestionsAndBriefing(project);
+  }
+
+  /** Same read, but for the client portal's own linked project — used to
+   * embed the briefing form inside the client's logged-in area instead of
+   * only the (still-supported) unauthenticated public link. */
+  async getForClient(currentClient: AuthenticatedClient, projectId: string) {
+    const project = await this.assertProjectScopedToClient(
+      currentClient,
+      projectId,
+    );
+    return this.getQuestionsAndBriefing(project);
+  }
+
+  private async getQuestionsAndBriefing(project: Project) {
     const [questions, briefing] = await Promise.all([
       this.companiesService.listBriefingQuestions(project.companyId),
-      this.prisma.projectBriefing.findUnique({ where: { projectId } }),
+      this.prisma.projectBriefing.findUnique({
+        where: { projectId: project.id },
+      }),
     ]);
     return { questions, briefing };
   }
@@ -193,6 +253,20 @@ export class ProjectBriefingService {
     if (
       currentUser.role !== UserRole.VINCEL_ADMIN &&
       project.companyId !== currentUser.companyId
+    ) {
+      throw new NotFoundException('Projeto não encontrado.');
+    }
+    return project;
+  }
+
+  private async assertProjectScopedToClient(
+    currentClient: AuthenticatedClient,
+    projectId: string,
+  ): Promise<Project> {
+    const project = await this.findActiveProject(projectId);
+    if (
+      project.clientId !== currentClient.id ||
+      project.companyId !== currentClient.companyId
     ) {
       throw new NotFoundException('Projeto não encontrado.');
     }

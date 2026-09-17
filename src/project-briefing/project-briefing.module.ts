@@ -7,5 +7,8 @@ import { ProjectBriefingService } from './project-briefing.service';
   imports: [CompaniesModule],
   controllers: [ProjectBriefingController],
   providers: [ProjectBriefingService],
+  // Consumed by ClientAuthModule so the client portal can read/submit the
+  // briefing for its own linked project through the same service.
+  exports: [ProjectBriefingService],
 })
 export class ProjectBriefingModule {}

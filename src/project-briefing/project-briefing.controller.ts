@@ -37,7 +37,7 @@ export class ProjectBriefingController {
   @Get('public')
   @ApiOperation({
     summary:
-      'Contexto do brifing público de um projeto (projeto/cliente, marca do escritório, perguntas e respostas já dadas) — sem autenticação.',
+      'Contexto do briefing público de um projeto (projeto/cliente, marca do escritório, perguntas e respostas já dadas) — sem autenticação.',
   })
   getPublicContext(@Param('projectId') projectId: string) {
     return this.projectBriefingService.getPublicContext(projectId);
@@ -46,7 +46,7 @@ export class ProjectBriefingController {
   @Post('public')
   @ApiOperation({
     summary:
-      'Envia (ou reenvia) as respostas do brifing deste projeto — sem autenticação.',
+      'Envia (ou reenvia) as respostas do briefing deste projeto — sem autenticação.',
   })
   submitPublic(
     @Param('projectId') projectId: string,
@@ -81,7 +81,7 @@ export class ProjectBriefingController {
   @Get('photos/:questionId/:fileId')
   @ApiOperation({
     summary:
-      'Imagem de uma foto de brifing enviada pelo cliente — sem autenticação.',
+      'Imagem de uma foto de briefing enviada pelo cliente — sem autenticação.',
   })
   async getPhoto(
     @Param('projectId') projectId: string,
@@ -103,7 +103,7 @@ export class ProjectBriefingController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: 'Lê o brifing (perguntas + respostas) deste projeto.',
+    summary: 'Lê o briefing (perguntas + respostas) deste projeto.',
   })
   getForCompany(
     @CurrentUser() currentUser: AuthenticatedUser,
