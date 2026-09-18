@@ -58,7 +58,7 @@ model Company {
   agendaTasks              AgendaTask[]
   timeEntries              TimeEntry[]
   scheduleStatusCategories ScheduleStatusCategory[]
-  briefingQuestions        BriefingQuestion[]
+  briefingTemplates        BriefingTemplate[]
   projectRequests          ProjectRequest[]
 }
 
@@ -170,10 +170,10 @@ enum Complexity {
 // own key — there's no dedicated endpoint for these, they ride along with
 // the phase inside the same PATCH /projects/:id { planningPhases }.
 type PhaseTask {
-  id          String
-  title       String
-  description String?
-  done        Boolean  @default(false)
+  id             String
+  title          String
+  description    String?
+  done           Boolean  @default(false)
   // References a User.id — who is responsible for this task, shown as a
   // colored dot (see User.color) next to it. No @relation: composite
   // types can't relate to models, so this rides along unenforced, same
@@ -182,22 +182,22 @@ type PhaseTask {
   // How many hours this specific task (as opposed to the whole etapa's
   // own estimatedHours) is expected to take — shown as a small badge.
   estimatedHours Float?
-  createdAt   DateTime
+  createdAt      DateTime
 }
 
 type PlanningPhase {
-  key           String
-  name          String
-  estimatedDays Int
+  key            String
+  name           String
+  estimatedDays  Int
   // When this task is scheduled to start — independent of the project's
   // overall startDate/endDate.
-  startDate     DateTime?
+  startDate      DateTime?
   // Término previsto — defaults to startDate + estimatedDays (computed on
   // the front) but the user can override it here; the front compares this
   // against the computed estimate to show how many days ahead/behind.
-  endDate       DateTime?
+  endDate        DateTime?
   // Free-text: which team/person executes this task.
-  team          String?
+  team           String?
   // How many hours this task is expected to take — relevant for projects
   // billed per_hour (see Project.feeModel), but tracked on every phase.
   estimatedHours Float?
@@ -275,11 +275,11 @@ enum ProviderStatus {
 // office reuses across projects, not a one-off snapshot. Not a User
 // account; providers never log in, they're just tracked contacts.
 model Provider {
-  id         String       @id @default(auto()) @map("_id") @db.ObjectId
-  name       String
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
   // A provider can hold more than one participação (e.g. eletricista and
   // encanador) — always at least one.
-  role       ProviderRole[]
+  role        ProviderRole[]
   // Only meaningful when role includes OUTRO.
   customRole  String?
   phone       String?
@@ -288,11 +288,11 @@ model Provider {
   companyName String?
   document    String?
   // Status only makes sense per-project — see ProjectProvider.status.
-  active      Boolean      @default(true)
-  companyId   String       @db.ObjectId
-  company     Company      @relation(fields: [companyId], references: [id])
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  active      Boolean        @default(true)
+  companyId   String         @db.ObjectId
+  company     Company        @relation(fields: [companyId], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
   deletedAt   DateTime?
 
   projectLinks ProjectProvider[]
@@ -400,9 +400,9 @@ enum ProjectMaterialStatus {
 // Product from the catalog (for provenance/reuse), but always a full
 // snapshot of its own — editing this never mutates the catalog Product.
 model ProjectMaterial {
-  id        String  @id @default(auto()) @map("_id") @db.ObjectId
-  projectId String  @db.ObjectId
-  project   Project @relation(fields: [projectId], references: [id])
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId String   @db.ObjectId
+  project   Project  @relation(fields: [projectId], references: [id])
   // Set when cadastrado a partir do catálogo de produtos; null for a
   // free-typed material with no catalog entry.
   productId String?  @db.ObjectId
@@ -488,24 +488,48 @@ enum BriefingQuestionType {
   PHOTOS
 }
 
-// The office's own customizable briefing form — a flat, ordered list per
-// company, edited from Configurações (see companies.controller's
-// briefing-questions routes) and reused for every project. Seeded with a
-// default set the first time a company's list is fetched empty (see
-// BriefingQuestionsService.listForCompany) rather than at company
-// creation, so existing companies pick up the same defaults on first use.
-model BriefingQuestion {
-  id        String               @id @default(auto()) @map("_id") @db.ObjectId
-  companyId String               @db.ObjectId
-  company   Company              @relation(fields: [companyId], references: [id])
-  section   String
-  label     String
-  type      BriefingQuestionType
-  order     Int
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+// One of a company's briefing forms. A project's briefing is resolved by
+// matching Project.type against `projectTypes` (see
+// CompaniesService.resolveTemplateForType) — at most one non-default
+// template may claim a given type at a time (enforced on save: assigning
+// a type to a template silently un-assigns it from whichever other
+// template had it). The `isDefault` template is the fallback for every
+// type no other template explicitly claims, so `projectTypes` on it is
+// always kept empty and isn't user-editable; exactly one exists per
+// company and it can't be deleted. Created lazily — the first time a
+// company's templates are fetched with none saved yet (see
+// CompaniesService.ensureDefaultTemplate) rather than at company
+// creation — so existing companies pick up the same default template
+// (seeded with the same DEFAULT_BRIEFING_QUESTIONS as before) on first use.
+model BriefingTemplate {
+  id           String             @id @default(auto()) @map("_id") @db.ObjectId
+  companyId    String             @db.ObjectId
+  company      Company            @relation(fields: [companyId], references: [id])
+  name         String
+  projectTypes String[]
+  isDefault    Boolean            @default(false)
+  questions    BriefingQuestion[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@index([companyId])
+}
+
+// The office's own customizable briefing form question — a flat, ordered
+// list per template (see BriefingTemplate), edited from Configurações
+// (companies.controller's briefing-templates routes).
+model BriefingQuestion {
+  id         String               @id @default(auto()) @map("_id") @db.ObjectId
+  templateId String               @db.ObjectId
+  template   BriefingTemplate     @relation(fields: [templateId], references: [id])
+  section    String
+  label      String
+  type       BriefingQuestionType
+  order      Int
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@index([templateId])
 }
 
 // One submitted answer. Deliberately holds only the questionId, not a
@@ -659,16 +683,16 @@ model User {
 // hash of the raw token is ever stored — the raw value exists solely in the
 // client and in transit, same principle as passwordHash above.
 model RefreshToken {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  tokenHash String   @unique
-  userId    String   @db.ObjectId
-  user      User     @relation(fields: [userId], references: [id])
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  tokenHash String    @unique
+  userId    String    @db.ObjectId
+  user      User      @relation(fields: [userId], references: [id])
   expiresAt DateTime
   // Null while active. Set either when this token is rotated into a
   // successor (normal use) or when a reuse of an already-rotated token is
   // detected and the whole chain is force-revoked (see AuthService.refreshTokens).
   revokedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 }
 
 // The acquirer actually processing a given Plan/Subscription/PaymentCharge.

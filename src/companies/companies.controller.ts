@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -28,7 +30,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { CompaniesService } from './companies.service';
-import { ReplaceBriefingQuestionsDto } from './dto/replace-briefing-questions.dto';
+import { BriefingTemplateDto } from './dto/briefing-template.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 
 const MAX_LOGO_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -116,30 +118,70 @@ export class CompaniesController {
     return this.companiesService.removeLogo(currentUser);
   }
 
-  @Get('me/briefing-questions')
+  @Get('me/briefing-templates')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({
     summary:
-      'Lista as perguntas do formulário de briefing do escritório (semeia os padrões na primeira vez).',
+      'Lista os templates de briefing do escritório, cada um com seus tipos de projeto e perguntas (cria o template padrão na primeira vez).',
   })
-  listBriefingQuestions(@CurrentUser() currentUser: AuthenticatedUser) {
-    return this.companiesService.listOwnBriefingQuestions(currentUser);
+  listBriefingTemplates(@CurrentUser() currentUser: AuthenticatedUser) {
+    return this.companiesService.listOwnBriefingTemplates(currentUser);
   }
 
-  @Put('me/briefing-questions')
+  @Post('me/briefing-templates')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({
     summary:
-      'Substitui a lista inteira de perguntas do briefing (adicionar/editar/remover/reordenar).',
+      'Cria um novo template de briefing (nome, tipos de projeto atendidos e suas perguntas).',
   })
-  replaceBriefingQuestions(
+  createBriefingTemplate(
     @CurrentUser() currentUser: AuthenticatedUser,
-    @Body() dto: ReplaceBriefingQuestionsDto,
+    @Body() dto: BriefingTemplateDto,
   ) {
-    return this.companiesService.replaceOwnBriefingQuestions(currentUser, dto);
+    return this.companiesService.upsertOwnBriefingTemplate(
+      currentUser,
+      undefined,
+      dto,
+    );
+  }
+
+  @Put('me/briefing-templates/:id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary:
+      'Substitui nome, tipos de projeto e a lista inteira de perguntas de um template (adicionar/editar/remover/reordenar).',
+  })
+  updateBriefingTemplate(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: BriefingTemplateDto,
+  ) {
+    return this.companiesService.upsertOwnBriefingTemplate(
+      currentUser,
+      id,
+      dto,
+    );
+  }
+
+  @Delete('me/briefing-templates/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary:
+      'Exclui um template (não o padrão) — os tipos que ele atendia voltam a cair no template padrão.',
+  })
+  deleteBriefingTemplate(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.companiesService.deleteOwnBriefingTemplate(currentUser, id);
   }
 }

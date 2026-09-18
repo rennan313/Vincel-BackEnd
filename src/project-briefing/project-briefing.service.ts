@@ -47,7 +47,10 @@ export class ProjectBriefingService {
     const project = await this.findActiveProject(projectId);
     const [company, questions, briefing] = await Promise.all([
       this.prisma.company.findUnique({ where: { id: project.companyId } }),
-      this.companiesService.listBriefingQuestions(project.companyId),
+      this.companiesService.listBriefingQuestions(
+        project.companyId,
+        project.type,
+      ),
       this.prisma.projectBriefing.findUnique({ where: { projectId } }),
     ]);
 
@@ -89,7 +92,10 @@ export class ProjectBriefingService {
     // still carry a stale one.
     const validQuestionIds = new Set(
       (
-        await this.companiesService.listBriefingQuestions(project.companyId)
+        await this.companiesService.listBriefingQuestions(
+          project.companyId,
+          project.type,
+        )
       ).map((q) => q.id),
     );
     const answers = dto.answers
@@ -168,7 +174,10 @@ export class ProjectBriefingService {
 
     const validQuestionIds = new Set(
       (
-        await this.companiesService.listBriefingQuestions(project.companyId)
+        await this.companiesService.listBriefingQuestions(
+          project.companyId,
+          project.type,
+        )
       ).map((q) => q.id),
     );
     if (!validQuestionIds.has(questionId)) {
@@ -227,7 +236,10 @@ export class ProjectBriefingService {
 
   private async getQuestionsAndBriefing(project: Project) {
     const [questions, briefing] = await Promise.all([
-      this.companiesService.listBriefingQuestions(project.companyId),
+      this.companiesService.listBriefingQuestions(
+        project.companyId,
+        project.type,
+      ),
       this.prisma.projectBriefing.findUnique({
         where: { projectId: project.id },
       }),
