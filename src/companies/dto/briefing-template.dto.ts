@@ -1,12 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  ArrayMinSize,
-  IsArray,
-  IsString,
-  MinLength,
-  ValidateNested,
-} from 'class-validator';
+import { IsArray, IsString, MinLength, ValidateNested } from 'class-validator';
 import { BriefingQuestionDto } from './briefing-question.dto';
 
 export class BriefingTemplateDto {
@@ -24,11 +18,11 @@ export class BriefingTemplateDto {
   @IsString({ each: true })
   projectTypes: string[];
 
+  // No @ArrayMinSize here: creating the template itself ("Criar
+  // formulário") happens before any question exists yet — questions are
+  // added to it afterwards, in a later PUT (see BriefingTemplatesCard).
   @ApiProperty({ type: [BriefingQuestionDto] })
   @IsArray()
-  @ArrayMinSize(1, {
-    message: 'O formulário precisa de pelo menos uma pergunta.',
-  })
   @ValidateNested({ each: true })
   @Type(() => BriefingQuestionDto)
   questions: BriefingQuestionDto[];
