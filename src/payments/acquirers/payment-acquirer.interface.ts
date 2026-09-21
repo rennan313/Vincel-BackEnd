@@ -1,13 +1,24 @@
 import type {
   AcquirerType,
+  BillingInterval,
   ChargeStatus,
   SubscriptionStatus,
 } from '@prisma/client';
 
+// How many months a billing cycle spans — the one place this mapping is
+// defined; acquirers translate it into their own frequency vocabulary
+// (e.g. MercadoPagoAcquirer's auto_recurring.frequency).
+export const BILLING_INTERVAL_MONTHS: Record<BillingInterval, number> = {
+  MONTHLY: 1,
+  QUARTERLY: 3,
+  YEARLY: 12,
+};
+
 export interface RecurringPlanInput {
   name: string;
-  /** Monthly amount charged after the trial, in BRL. */
+  /** Amount charged per billing cycle, in BRL — see billingInterval. */
   price: number;
+  billingInterval: BillingInterval;
   trialDays: number;
 }
 
@@ -31,8 +42,9 @@ export interface SubscribeCompanyInput {
   externalReference: string;
   /** Plan name — shown to the payer as the subscription's description. */
   reason: string;
-  /** Monthly amount charged after the trial, in BRL. */
+  /** Amount charged per billing cycle, in BRL — see billingInterval. */
   price: number;
+  billingInterval: BillingInterval;
   trialDays: number;
 }
 

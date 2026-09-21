@@ -101,6 +101,7 @@ export class SubscriptionsService {
       externalReference: subscription.id,
       reason: plan.name,
       price: plan.price,
+      billingInterval: plan.billingInterval,
       trialDays: plan.trialDays,
     });
 

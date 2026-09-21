@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { BillingInterval, PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -34,35 +34,48 @@ const SERVICES = [
   'Outro',
 ];
 
-// Subscription tiers. "Solo" is isDefault: true — every new company is
-// auto-trialed into it at signup (see AuthService.startTrialSubscription).
-// Not synced to any acquirer here — that only happens via PlansService,
-// once an acquirer is actually enabled.
+// A single product (Vincel), offered at three billing cadences — not three
+// feature tiers. Each row is still its own Plan (see the billingInterval
+// comment on the schema) so it gets its own acquirerRefs/checkout through
+// the existing Plan/Subscription machinery, no special-casing needed.
+// "Mensal" is isDefault: true — every new company is auto-trialed into it
+// at signup (see AuthService.startTrialSubscription). Not synced to any
+// acquirer here — that only happens via PlansService, once an acquirer is
+// actually enabled.
+const MONTHLY_PRICE = 79.0;
+const QUARTERLY_DISCOUNT = 0.15;
+const YEARLY_DISCOUNT = 0.2;
+
 const PLANS = [
   {
-    name: 'Solo',
-    description: 'Para arquitetos autônomos administrando poucos projetos.',
-    price: 99.9,
+    name: 'Mensal',
+    description: 'Cobrança mensal, sem compromisso de permanência.',
+    price: MONTHLY_PRICE,
+    billingInterval: BillingInterval.MONTHLY,
     trialDays: 0,
     isDefault: true,
   },
   {
-    name: 'Escritório',
-    description:
-      'Para escritórios pequenos e médios com múltiplos projetos ativos.',
-    price: 159.9,
+    name: 'Trimestral',
+    description: 'Cobrança a cada 3 meses — 15% de desconto sobre o mensal.',
+    price: round2(MONTHLY_PRICE * 3 * (1 - QUARTERLY_DISCOUNT)),
+    billingInterval: BillingInterval.QUARTERLY,
     trialDays: 0,
     isDefault: false,
   },
   {
-    name: 'Studio',
-    description:
-      'Para escritórios maiores com várias equipes e alto volume de projetos.',
-    price: 699.9,
+    name: 'Anual',
+    description: 'Cobrança anual — 20% de desconto sobre o mensal.',
+    price: round2(MONTHLY_PRICE * 12 * (1 - YEARLY_DISCOUNT)),
+    billingInterval: BillingInterval.YEARLY,
     trialDays: 0,
     isDefault: false,
   },
 ];
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
 async function main() {
   for (const projectType of PROJECT_TYPES) {
@@ -89,6 +102,7 @@ async function main() {
       update: {
         description: plan.description,
         price: plan.price,
+        billingInterval: plan.billingInterval,
         trialDays: plan.trialDays,
         isDefault: plan.isDefault,
       },
@@ -96,6 +110,19 @@ async function main() {
     });
   }
   console.log(`Seeded ${PLANS.length} plans.`);
+
+  // Retired tier-based plans (Solo/Escritório/Studio), superseded by the
+  // single mensal/trimestral/anual product above — soft-deleted, not
+  // dropped, so existing Subscription rows still resolve their plan (join
+  // isn't deletedAt-filtered) even though the catalog no longer offers them.
+  const retiredPlanNames = ['Solo', 'Escritório', 'Studio'];
+  const { count: retiredCount } = await prisma.plan.updateMany({
+    where: { name: { in: retiredPlanNames }, deletedAt: null },
+    data: { deletedAt: new Date(), isDefault: false, active: false },
+  });
+  if (retiredCount > 0) {
+    console.log(`Retired ${retiredCount} superseded plan(s).`);
+  }
 }
 
 main()

@@ -15,14 +15,15 @@ import {
   InvalidWebhookSignatureError,
 } from 'mercadopago';
 import { AcquirerType, ChargeStatus, SubscriptionStatus } from '@prisma/client';
-import type {
-  PaymentAcquirer,
-  RecurringPlanInput,
-  RecurringPlanResult,
-  SubscribeCompanyInput,
-  SubscribeCompanyResult,
-  NormalizedWebhookEvent,
-  WebhookRequest,
+import {
+  BILLING_INTERVAL_MONTHS,
+  type PaymentAcquirer,
+  type RecurringPlanInput,
+  type RecurringPlanResult,
+  type SubscribeCompanyInput,
+  type SubscribeCompanyResult,
+  type NormalizedWebhookEvent,
+  type WebhookRequest,
 } from './payment-acquirer.interface';
 
 interface MercadoPagoWebhookBody {
@@ -103,7 +104,7 @@ export class MercadoPagoAcquirer implements PaymentAcquirer {
         reason: input.name,
         back_url: this.backUrl,
         auto_recurring: {
-          frequency: 1,
+          frequency: BILLING_INTERVAL_MONTHS[input.billingInterval],
           frequency_type: 'months',
           transaction_amount: input.price,
           currency_id: 'BRL',
@@ -144,7 +145,7 @@ export class MercadoPagoAcquirer implements PaymentAcquirer {
           back_url: this.backUrl,
           status: 'pending',
           auto_recurring: {
-            frequency: 1,
+            frequency: BILLING_INTERVAL_MONTHS[input.billingInterval],
             frequency_type: 'months',
             transaction_amount: input.price,
             currency_id: 'BRL',
