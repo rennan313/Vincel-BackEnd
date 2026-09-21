@@ -24,7 +24,6 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { CompleteGoogleRegistrationDto } from './dto/complete-google-registration.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import type { AuthenticatedUser } from './strategies/jwt.strategy';
 
@@ -36,21 +35,9 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
-  @Post('register')
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary:
-      'Auto credenciamento — cria o escritório (Company) e seu primeiro usuário ADMIN.',
-  })
-  @ApiResponse({ status: 201, description: 'Conta criada.' })
-  @ApiResponse({
-    status: 409,
-    description: 'E-mail ou CNPJ/CPF já cadastrado.',
-  })
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
-  }
-
+  // Self-signup with e-mail/password was removed — account creation is
+  // Google-only now (see google/callback → google/complete below). Login by
+  // e-mail/senha stays for accounts created before this change.
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Autentica com e-mail e senha.' })

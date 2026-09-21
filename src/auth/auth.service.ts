@@ -19,9 +19,7 @@ import type { Profile } from 'passport-google-oauth20';
 import { PrismaService } from '../prisma/prisma.service';
 import { CompleteGoogleRegistrationDto } from './dto/complete-google-registration.dto';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 
-const SALT_ROUNDS = 10;
 const GOOGLE_PENDING_PURPOSE = 'google-register-pending';
 const GOOGLE_PENDING_EXPIRES_IN = '10m';
 const REFRESH_TOKEN_BYTES = 64;
@@ -50,55 +48,6 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
   ) {}
-
-  async register(dto: RegisterDto) {
-    const [existingEmail, existingDocument] = await Promise.all([
-      this.prisma.user.findUnique({ where: { email: dto.email } }),
-      this.prisma.company.findUnique({
-        where: { document: dto.companyDocument },
-      }),
-    ]);
-    if (existingEmail) {
-      throw new ConflictException('Este e-mail já está em uso.');
-    }
-    if (existingDocument) {
-      throw new ConflictException('Este CNPJ/CPF já está cadastrado.');
-    }
-
-    const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
-
-    const { user, company } = await this.prisma.$transaction(async (tx) => {
-      const company = await tx.company.create({
-        data: {
-          name: dto.name,
-          document: dto.companyDocument,
-          documentType: dto.companyDocumentType,
-        },
-      });
-      const user = await tx.user.create({
-        data: {
-          name: dto.name,
-          email: dto.email,
-          passwordHash,
-          role: UserRole.ADMIN,
-          companyId: company.id,
-        },
-      });
-      await this.startTrialSubscription(tx, company.id);
-      return { user, company };
-    });
-
-    return {
-      ...(await this.issueTokenPair(user)),
-      user: this.toSafeUser(user),
-      company: {
-        id: company.id,
-        name: company.name,
-        document: company.document,
-        documentType: company.documentType,
-      },
-    };
-  }
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
