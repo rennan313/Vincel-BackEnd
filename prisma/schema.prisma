@@ -703,6 +703,14 @@ enum AcquirerType {
   MERCADO_PAGO
 }
 
+// How often a Plan is billed. Mapped to Mercado Pago's auto_recurring
+// frequency (in months) in MercadoPagoAcquirer — see billingIntervalMonths.
+enum BillingInterval {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
 enum SubscriptionStatus {
   // Checkout created at the acquirer, payer hasn't completed authorization yet.
   PENDING
@@ -735,8 +743,15 @@ model Plan {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   name        String    @unique
   description String?
-  // Monthly amount charged after the trial, in BRL.
+  // Amount charged per billing cycle, in BRL — the cycle length is
+  // billingInterval, not necessarily a month (e.g. the YEARLY plan's price
+  // is the full yearly charge, already discounted, not a monthly rate).
   price       Float
+  // How often this plan is billed — Vincel itself has a single product,
+  // offered as three Plan rows (one per interval) so each keeps its own
+  // acquirerRefs/price/trialDays through the existing Plan/Subscription
+  // machinery, with no special-casing needed elsewhere.
+  billingInterval BillingInterval @default(MONTHLY)
   trialDays   Int       @default(0)
   active      Boolean   @default(true)
   // At most one plan is default at a time — enforced at the application

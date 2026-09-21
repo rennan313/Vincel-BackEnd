@@ -1,7 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { BillingInterval } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
@@ -24,13 +26,22 @@ export class UpdatePlanDto {
 
   @ApiPropertyOptional({
     example: 199.9,
-    description: 'Valor mensal cobrado após o trial, em BRL.',
+    description:
+      'Valor cobrado por ciclo de cobrança, em BRL (ver billingInterval).',
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0, { message: 'O preço não pode ser negativo.' })
   price?: number;
+
+  @ApiPropertyOptional({
+    enum: BillingInterval,
+    description: 'Periodicidade da cobrança.',
+  })
+  @IsOptional()
+  @IsEnum(BillingInterval, { message: 'Periodicidade de cobrança inválida.' })
+  billingInterval?: BillingInterval;
 
   @ApiPropertyOptional({ minimum: 0 })
   @IsOptional()

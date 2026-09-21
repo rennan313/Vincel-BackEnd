@@ -33,6 +33,7 @@ export class PlansService {
         name: dto.name,
         description: dto.description,
         price: dto.price,
+        billingInterval: dto.billingInterval ?? 'MONTHLY',
         trialDays: dto.trialDays ?? 0,
         isDefault: dto.isDefault ?? false,
       },
@@ -67,6 +68,7 @@ export class PlansService {
           .createRecurringPlan({
             name: plan.name,
             price: plan.price,
+            billingInterval: plan.billingInterval,
             trialDays: plan.trialDays,
           });
         return { acquirer, externalPlanId };
@@ -79,9 +81,9 @@ export class PlansService {
     });
   }
 
-  // Local-only: price/trial edits are not pushed back to already-synced
-  // acquirers. Out of scope for now — revisit once a plan needs to change
-  // after it has live subscribers.
+  // Local-only: price/trial/billingInterval edits are not pushed back to
+  // already-synced acquirers. Out of scope for now — revisit once a plan
+  // needs to change after it has live subscribers.
   async update(id: string, dto: UpdatePlanDto) {
     await this.findScoped(id);
     if (dto.isDefault) {
