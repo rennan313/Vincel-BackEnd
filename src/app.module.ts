@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { ClientAuthModule } from './client-auth/client-auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { CompaniesModule } from './companies/companies.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { LeroyMerlinModule } from './leroy-merlin/leroy-merlin.module';
 import { LojaObraFacilModule } from './loja-obra-facil/loja-obra-facil.module';
 import { MaterialLookupModule } from './material-lookup/material-lookup.module';
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     ClientsModule,
     CompaniesModule,
+    DashboardModule,
     ProjectTypesModule,
     ProjectsModule,
     ProvidersModule,
