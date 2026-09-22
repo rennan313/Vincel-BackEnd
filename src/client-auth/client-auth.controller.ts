@@ -23,6 +23,7 @@ import type { Request } from 'express';
 import { SubmitProjectBriefingDto } from '../project-briefing/dto/submit-project-briefing.dto';
 import { UploadBriefingPhotoDto } from '../project-briefing/dto/upload-briefing-photo.dto';
 import { ProjectBriefingService } from '../project-briefing/project-briefing.service';
+import { ProjectMaterialsService } from '../project-materials/project-materials.service';
 import { ClientAuthService } from './client-auth.service';
 import { CurrentClient } from './decorators/current-client.decorator';
 import { ClientLoginDto } from './dto/client-login.dto';
@@ -43,6 +44,7 @@ export class ClientAuthController {
   constructor(
     private readonly clientAuthService: ClientAuthService,
     private readonly projectBriefingService: ProjectBriefingService,
+    private readonly projectMaterialsService: ProjectMaterialsService,
   ) {}
 
   @Post('login')
@@ -152,6 +154,39 @@ export class ClientAuthController {
       dto.questionId,
       file,
       `${request.protocol}://${request.get('host')}`,
+    );
+  }
+
+  @Get('me/projects/:projectId/materials')
+  @ApiBearerAuth()
+  @UseGuards(ClientJwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Materiais especificados em um projeto vinculado ao cliente autenticado.',
+  })
+  listMaterials(
+    @CurrentClient() currentClient: AuthenticatedClient,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.projectMaterialsService.listForClient(currentClient, projectId);
+  }
+
+  @Patch('me/projects/:projectId/materials/:materialId/approve')
+  @ApiBearerAuth()
+  @UseGuards(ClientJwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Aprova um material Especificado — o único status que o cliente pode definir.',
+  })
+  approveMaterial(
+    @CurrentClient() currentClient: AuthenticatedClient,
+    @Param('projectId') projectId: string,
+    @Param('materialId') materialId: string,
+  ) {
+    return this.projectMaterialsService.approveForClient(
+      currentClient,
+      projectId,
+      materialId,
     );
   }
 }
