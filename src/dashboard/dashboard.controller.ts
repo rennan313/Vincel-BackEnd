@@ -22,4 +22,13 @@ export class DashboardController {
   summary(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.dashboardService.summary(currentUser);
   }
+
+  @Get('charts')
+  @ApiOperation({
+    summary:
+      'Dados para os gráficos do Dashboard — projetos por tipo e projetos/honorários dos últimos meses.',
+  })
+  charts(@CurrentUser() currentUser: AuthenticatedUser) {
+    return this.dashboardService.charts(currentUser);
+  }
 }
