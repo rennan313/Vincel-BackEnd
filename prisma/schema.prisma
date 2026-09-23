@@ -673,8 +673,9 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  refreshTokens RefreshToken[]
-  timeEntries   TimeEntry[]
+  refreshTokens       RefreshToken[]
+  timeEntries         TimeEntry[]
+  agendaTasksAssigned AgendaTask[]
 }
 
 // Backs the "stay logged in" refresh flow: the access token (JwtStrategy)
@@ -821,19 +822,30 @@ model PaymentCharge {
 }
 
 // A standalone reminder on the Agenda calendar — not tied to a project or
-// to the project's own Cronograma (see PlanningPhase). Just a name and a
-// date the office wants to remember.
+// to the project's own Cronograma (see PlanningPhase). Doubles as two kinds
+// of item, distinguished by `endDate`: a plain "tarefa" (just a name and a
+// date, no time) when `endDate` is absent, or a "compromisso" (a name, a
+// start `date` that carries a real time-of-day, an `endDate`, and an
+// optional responsável) when it's set. `details` and `assigneeUserId` apply
+// to either kind. All of these are optional so existing documents written
+// before these fields existed keep reading fine.
 model AgendaTask {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  date      DateTime
-  companyId String    @db.ObjectId
-  company   Company   @relation(fields: [companyId], references: [id])
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  date           DateTime
+  endDate        DateTime?
+  // Free-text notes — "o que precisa saber" beyond the name.
+  details        String?
+  assigneeUserId String?   @db.ObjectId
+  assignee       User?     @relation(fields: [assigneeUserId], references: [id])
+  companyId      String    @db.ObjectId
+  company        Company   @relation(fields: [companyId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
 
   @@index([companyId])
+  @@index([assigneeUserId])
 }
 
 // One sidebar-timer session — "Atividade" + "Projeto", started/paused/
