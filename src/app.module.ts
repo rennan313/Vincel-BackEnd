@@ -22,7 +22,6 @@ import { ProjectProvidersModule } from './project-providers/project-providers.mo
 import { ProjectRequestsModule } from './project-requests/project-requests.module';
 import { ProjectTypesModule } from './project-types/project-types.module';
 import { ProjectsModule } from './projects/projects.module';
-import { ProposalsModule } from './proposals/proposals.module';
 import { ProvidersModule } from './providers/providers.module';
 import { ScheduleStatusCategoriesModule } from './schedule-status-categories/schedule-status-categories.module';
 import { ServicesModule } from './services/services.module';
@@ -50,7 +49,6 @@ import { UsersModule } from './users/users.module';
     ProjectDocumentsModule,
     ProjectBriefingModule,
     ProjectRequestsModule,
-    ProposalsModule,
     ServicesModule,
     SuppliersModule,
     ProductsModule,

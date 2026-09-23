@@ -60,7 +60,6 @@ model Company {
   scheduleStatusCategories ScheduleStatusCategory[]
   briefingTemplates        BriefingTemplate[]
   projectRequests          ProjectRequest[]
-  proposals                Proposal[]
 }
 
 // User-defined categories for the Cronograma's schedule-adherence
@@ -125,7 +124,6 @@ model Client {
 
   projects        Project[]
   projectRequests ProjectRequest[]
-  proposals       Proposal[]
 
   @@index([companyId])
 }
@@ -149,11 +147,6 @@ model ProjectRequest {
   status    ProjectRequestStatus @default(new)
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt
-
-  // A staff member can turn this lead into a formal Proposal — see
-  // Proposal.projectRequestId. A request can spawn more than one (e.g. a
-  // revised proposal), so this is an array, not a 1:1.
-  proposals Proposal[]
 
   @@index([companyId])
 }
@@ -390,111 +383,7 @@ model Project {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  // Reverse side of Proposal.convertedProjectId. Modeled as a regular
-  // many-to-one (not a unique 1:1) on purpose: MongoDB's unique index isn't
-  // sparse for Prisma-written nulls (same gotcha as User.googleId above),
-  // so a @unique convertedProjectId would collide the moment two proposals
-  // both have it unset. In practice at most one Proposal ever points here —
-  // that guarantee comes from updateStatus's transaction, not from a DB
-  // constraint.
-  proposals Proposal[]
-
   @@index([companyId])
-}
-
-enum ProposalStatus {
-  DRAFT
-  SENT
-  NEGOTIATING
-  ACCEPTED
-  REJECTED
-  EXPIRED
-}
-
-// Um evento do histórico de status da proposta — trilha de auditoria
-// simples, append-only, mostrada como timeline na tela de detalhe.
-type ProposalStatusEvent {
-  status    ProposalStatus
-  changedAt DateTime
-  note      String?
-}
-
-// Proposta comercial — o estágio entre "conversamos com o cliente" e "o
-// Project existe de fato". Os campos de escopo/financeiro espelham
-// CreateProjectDto de propósito: ao aceitar (status ACCEPTED), viram o
-// Project sem redigitação (ver ProposalsService.updateStatus).
-model Proposal {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
-
-  // Igual ao Project: cliente vinculado é opcional, nome sempre
-  // denormalizado para busca/listagem funcionar mesmo com cliente digitado
-  // livre (sem cadastro).
-  clientId   String? @db.ObjectId
-  client     Client? @relation(fields: [clientId], references: [id])
-  clientName String
-
-  // Vínculo opcional com o lead que originou esta proposta (portal do
-  // cliente, ver ProjectRequest) — nunca obrigatório, a equipe também cria
-  // propostas direto para qualquer cliente.
-  projectRequestId String?         @db.ObjectId
-  projectRequest   ProjectRequest? @relation(fields: [projectRequestId], references: [id])
-
-  // Vira Project.name na conversão.
-  name       String
-  type       String
-  customType String?
-  areaSqm    Float?
-
-  services           String[]
-  customServiceLabel String?
-  complexity         Complexity?
-
-  constructionBudget Float?
-  feeModel           FeeModel?
-  feeRate            Float?
-  // Só relevante quando feeModel é per_hour.
-  estimatedHours     Float?
-  // Derivado no front de feeRate × área (per_sqm) ou feeRate × estimatedHours (per_hour).
-  feeAmount          Float?
-  paymentMethod      PaymentMethod?
-  installments       ProjectInstallment[]
-
-  // Texto livre do que está sendo proposto — não existe em Project, fica só
-  // registrado aqui (histórico comercial).
-  scope String?
-  notes String?
-
-  // Data até quando a proposta vale — passada essa data, uma SENT/NEGOTIATING
-  // pendente é lida como EXPIRED (ver ProposalsService.applyExpiry).
-  validUntil DateTime?
-
-  status        ProposalStatus        @default(DRAFT)
-  statusHistory ProposalStatusEvent[]
-  sentAt          DateTime?
-  decidedAt       DateTime?
-  // Obrigatório quando status vira REJECTED.
-  rejectionReason String?
-
-  // Setado só quando status = ACCEPTED — aponta para o Project criado a
-  // partir desta proposta. Sem @unique de propósito: MongoDB's unique index
-  // isn't sparse for Prisma-written nulls (mesmo caso de User.googleId
-  // acima), então duas propostas ainda sem convertedProjectId colidiriam.
-  // A garantia de "uma proposta só gera um Project" já vem da lógica de
-  // updateStatus (cada aceite cria um Project novo dentro da transação),
-  // não de uma constraint de banco.
-  convertedProjectId String?  @db.ObjectId
-  convertedProject   Project? @relation(fields: [convertedProjectId], references: [id])
-
-  active    Boolean   @default(true)
-  companyId String    @db.ObjectId
-  company   Company   @relation(fields: [companyId], references: [id])
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([companyId])
-  @@index([clientId])
-  @@index([projectRequestId])
 }
 
 // A material's specification lifecycle on a project — A_DEFINIR (not yet
