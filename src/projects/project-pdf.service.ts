@@ -24,6 +24,7 @@ const SERVICE_LABELS: Record<string, string> = {
 // Mirrors vincel-front's locales/pt.json projects.status.*.
 const STATUS_LABELS: Record<string, string> = {
   in_progress: 'Em andamento',
+  awaiting_client_review: 'Aguardando revisão do cliente',
   completed: 'Concluído',
   paused: 'Pausado',
   canceled: 'Cancelado',

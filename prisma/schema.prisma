@@ -153,6 +153,10 @@ model ProjectRequest {
 
 enum ProjectStatus {
   in_progress
+  // Trabalho da equipe parado à espera de uma decisão/aprovação do
+  // cliente (ex.: revisão de plantas) — ainda um estado "ativo" do fluxo,
+  // não um pausa por iniciativa do escritório (ver `paused`).
+  awaiting_client_review
   completed
   paused
   canceled
