@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ExpenseCategory, PaymentStatus } from '@prisma/client';
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNumber,
@@ -49,4 +50,13 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsDateString()
   paidAt?: string;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'Exclui este lançamento da média mensal por categoria (FinancialService.categorySpend) — pra um gasto pontual/fora do padrão não distorcer a média.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  excludeFromAverage?: boolean;
 }

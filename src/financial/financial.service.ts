@@ -44,6 +44,9 @@ export interface PayableRow {
   // recorrente) e pra CompanyExpense recorrente criada antes desse campo
   // existir (tratada como "monthly" na leitura, nunca gravado).
   recurringFrequency: RecurringFrequency | null;
+  // Exclui esta linha da média mensal por categoria (categorySpend) — nunca
+  // afeta o valor em si, só essa agregação.
+  excludeFromAverage: boolean;
 }
 
 export interface CashFlowMonth {
@@ -58,9 +61,27 @@ export interface CashFlowResult {
   unscheduledPayables: number;
 }
 
+export interface CategorySpendRow {
+  category: ExpenseCategory | null;
+  total: number;
+  average: number;
+  count: number;
+}
+
+export interface CategorySpendResult {
+  months: number;
+  // Ordenadas desc por average — só categorias com pelo menos um
+  // lançamento no período (nenhuma fatia zerada).
+  rows: CategorySpendRow[];
+}
+
 // Quantos meses a projeção de fluxo de caixa olha pra frente (mês atual +
 // os seguintes) — mesmo grão que DashboardService.charts usa pra trás.
 const CASH_FLOW_MONTHS = 6;
+
+// Quantos meses a média de gasto por categoria olha pra trás (mês atual +
+// os anteriores) — mesmo grão que DashboardService.charts usa.
+const CATEGORY_SPEND_MONTHS = 6;
 
 function monthKey(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
@@ -255,6 +276,7 @@ export class FinancialService {
         paidAt: row.paidAt,
         recurring: false,
         recurringFrequency: null,
+        excludeFromAverage: row.excludeFromAverage,
       })),
       ...companyExpenses.map((row): PayableRow => ({
         kind: 'company',
@@ -270,6 +292,7 @@ export class FinancialService {
         paidAt: row.paidAt,
         recurring: row.recurring,
         recurringFrequency: row.recurringFrequency,
+        excludeFromAverage: row.excludeFromAverage,
       })),
     ];
 
@@ -381,5 +404,70 @@ export class FinancialService {
     }));
 
     return { months, unscheduledReceivables, unscheduledPayables };
+  }
+
+  /**
+   * "Em que a empresa costuma gastar" — média mensal de gasto por
+   * categoria, olhando só o que já foi de fato PAGO (paidAt) nos últimos
+   * CATEGORY_SPEND_MONTHS meses. Diferente de cashFlow (que projeta
+   * PENDING pra frente), isso é sobre histórico real. Média = soma do
+   * período / CATEGORY_SPEND_MONTHS (denominador fixo, não só os meses com
+   * lançamento) — reflete "quanto normalmente sai por mês" mesmo pra uma
+   * categoria que não tem gasto todo mês (ex.: seguro anual). Um
+   * lançamento com excludeFromAverage nunca entra na conta — pontual/fora
+   * do padrão, não representativo da categoria.
+   */
+  async categorySpend(
+    currentUser: AuthenticatedUser,
+  ): Promise<CategorySpendResult> {
+    const companyId = resolveCompanyId(currentUser);
+
+    const windowStart = new Date();
+    windowStart.setUTCDate(1);
+    windowStart.setUTCHours(0, 0, 0, 0);
+    windowStart.setUTCMonth(
+      windowStart.getUTCMonth() - (CATEGORY_SPEND_MONTHS - 1),
+    );
+
+    const [projectExpenses, companyExpenses] = await Promise.all([
+      this.prisma.projectExpense.findMany({
+        where: {
+          project: { companyId, deletedAt: null },
+          status: PaymentStatus.PAID,
+          paidAt: { gte: windowStart },
+        },
+      }),
+      this.prisma.companyExpense.findMany({
+        where: {
+          companyId,
+          status: PaymentStatus.PAID,
+          paidAt: { gte: windowStart },
+        },
+      }),
+    ]);
+
+    const totals = new Map<
+      ExpenseCategory | null,
+      { total: number; count: number }
+    >();
+    for (const expense of [...projectExpenses, ...companyExpenses]) {
+      if (expense.excludeFromAverage) continue;
+      const key = expense.category ?? null;
+      const entry = totals.get(key) ?? { total: 0, count: 0 };
+      entry.total += expense.amount;
+      entry.count += 1;
+      totals.set(key, entry);
+    }
+
+    const rows: CategorySpendRow[] = Array.from(totals.entries())
+      .map(([category, { total, count }]) => ({
+        category,
+        total,
+        average: total / CATEGORY_SPEND_MONTHS,
+        count,
+      }))
+      .sort((a, b) => b.average - a.average);
+
+    return { months: CATEGORY_SPEND_MONTHS, rows };
   }
 }
