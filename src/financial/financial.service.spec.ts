@@ -1,4 +1,4 @@
-import { PaymentStatus, UserRole } from '@prisma/client';
+import { PaymentMethod, PaymentStatus, UserRole } from '@prisma/client';
 import { FinancialService } from './financial.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -233,6 +233,24 @@ describe('FinancialService.receivables', () => {
 
     expect(result.data).toHaveLength(1);
     expect(result.data[0].installmentId).toBe('i2');
+  });
+
+  it("carries the project's chosen paymentMethod onto every one of its rows", async () => {
+    prisma.project.findMany.mockResolvedValue([
+      buildProject({
+        paymentMethod: PaymentMethod.installments,
+        installments: [
+          { id: 'i1', label: 'Parcela 1', amount: 1000, status: PaymentStatus.PENDING, dueDate: null },
+          { id: 'i2', label: 'Parcela 2', amount: 1000, status: PaymentStatus.PENDING, dueDate: null },
+        ],
+      }),
+    ]);
+
+    const result = await service.receivables(buildCurrentUser(), { page: 1, pageSize: 20 });
+
+    expect(result.data.every((row) => row.paymentMethod === PaymentMethod.installments)).toBe(
+      true,
+    );
   });
 });
 

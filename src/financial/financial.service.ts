@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PaymentStatus } from '@prisma/client';
+import { PaymentMethod, PaymentStatus } from '@prisma/client';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { resolveCompanyId } from '../common/company-scope';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,6 +10,10 @@ export interface ReceivableRow {
   projectId: string;
   projectName: string;
   clientName: string;
+  // Forma de pagamento escolhida pro projeto inteiro (à vista/parcelado/por
+  // etapa/mensal/personalizado) — não por parcela, todas as parcelas de um
+  // mesmo projeto compartilham o mesmo valor aqui.
+  paymentMethod: PaymentMethod | null;
   installmentId: string;
   label: string;
   amount: number;
@@ -116,7 +120,13 @@ export class FinancialService {
     const companyId = resolveCompanyId(currentUser, query.companyId);
     const projects = await this.prisma.project.findMany({
       where: { companyId, deletedAt: null },
-      select: { id: true, name: true, clientName: true, installments: true },
+      select: {
+        id: true,
+        name: true,
+        clientName: true,
+        paymentMethod: true,
+        installments: true,
+      },
     });
 
     let rows: ReceivableRow[] = projects.flatMap((project) =>
@@ -124,6 +134,7 @@ export class FinancialService {
         projectId: project.id,
         projectName: project.name,
         clientName: project.clientName,
+        paymentMethod: project.paymentMethod,
         installmentId: installment.id,
         label: installment.label,
         amount: installment.amount,
