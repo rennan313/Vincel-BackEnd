@@ -364,6 +364,53 @@ describe('FinancialService.payables', () => {
     });
   });
 
+  it('filters to only recurring rows ("contas fixas") when recurring=true is passed', async () => {
+    prisma.projectExpense.findMany.mockResolvedValue([
+      {
+        id: 'e1',
+        projectId: 'p1',
+        name: 'Taxa da prefeitura',
+        amount: 300,
+        dueDate: null,
+        status: PaymentStatus.PENDING,
+        paidAt: null,
+        project: {
+          name: 'Residência Alto da Serra',
+          clientName: 'Ana Beatriz Ferreira',
+        },
+      },
+    ]);
+    prisma.companyExpense.findMany.mockResolvedValue([
+      {
+        id: 'c1',
+        name: 'Aluguel do escritório',
+        amount: 4500,
+        dueDate: null,
+        status: PaymentStatus.PENDING,
+        paidAt: null,
+        recurring: true,
+      },
+      {
+        id: 'c2',
+        name: 'Reforma pontual',
+        amount: 1200,
+        dueDate: null,
+        status: PaymentStatus.PENDING,
+        paidAt: null,
+        recurring: false,
+      },
+    ]);
+
+    const result = await service.payables(buildCurrentUser(), {
+      page: 1,
+      pageSize: 20,
+      recurring: 'true',
+    });
+
+    expect(result.total).toBe(1);
+    expect(result.data[0].expenseId).toBe('c1');
+  });
+
   it('filters the merged list by search across both sources', async () => {
     prisma.projectExpense.findMany.mockResolvedValue([
       {

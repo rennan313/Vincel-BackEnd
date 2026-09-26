@@ -265,6 +265,9 @@ export class FinancialService {
     if (query.status) {
       rows = rows.filter((row) => row.status === query.status);
     }
+    if (query.recurring === 'true') {
+      rows = rows.filter((row) => row.recurring);
+    }
     if (query.search) {
       const search = query.search.toLowerCase();
       rows = rows.filter(

@@ -3,6 +3,7 @@ import { PaymentStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsMongoId,
   IsOptional,
@@ -46,4 +47,17 @@ export class ListPayablesDto {
   @IsOptional()
   @IsMongoId()
   companyId?: string;
+
+  // Só a string literal "true" — não existe filtro pro caso contrário (a
+  // aba A Pagar sem esse parâmetro já mostra tudo, recorrente ou não), e
+  // isso evita a pegadinha de "false" boolean-coerced de uma query string
+  // (Boolean('false') é true).
+  @ApiPropertyOptional({
+    enum: ['true'],
+    description:
+      'Quando "true", filtra só despesas recorrentes (contas fixas — aba Contas Fixas do Financeiro).',
+  })
+  @IsOptional()
+  @IsIn(['true'])
+  recurring?: 'true';
 }
