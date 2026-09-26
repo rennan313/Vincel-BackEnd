@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { ExpenseCategory, PaymentMethod, PaymentStatus } from '@prisma/client';
+import {
+  ExpenseCategory,
+  PaymentMethod,
+  PaymentStatus,
+  RecurringFrequency,
+} from '@prisma/client';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { resolveCompanyId } from '../common/company-scope';
 import { PrismaService } from '../prisma/prisma.service';
@@ -35,6 +40,10 @@ export interface PayableRow {
   status: PaymentStatus;
   paidAt: Date | null;
   recurring: boolean;
+  // Só relevante quando recurring é true — null pra ProjectExpense (nunca
+  // recorrente) e pra CompanyExpense recorrente criada antes desse campo
+  // existir (tratada como "monthly" na leitura, nunca gravado).
+  recurringFrequency: RecurringFrequency | null;
 }
 
 export interface CashFlowMonth {
@@ -245,6 +254,7 @@ export class FinancialService {
         status: row.status,
         paidAt: row.paidAt,
         recurring: false,
+        recurringFrequency: null,
       })),
       ...companyExpenses.map((row): PayableRow => ({
         kind: 'company',
@@ -259,6 +269,7 @@ export class FinancialService {
         status: row.status,
         paidAt: row.paidAt,
         recurring: row.recurring,
+        recurringFrequency: row.recurringFrequency,
       })),
     ];
 

@@ -253,6 +253,17 @@ enum ExpenseCategory {
   other
 }
 
+// Frequência de uma CompanyExpense recorrente — opcional, só faz sentido
+// junto de recurring:true. Registros antigos (recurring:true de antes
+// desse campo existir) ficam null e são tratados como "monthly" na hora
+// de gerar a próxima ocorrência (ver CompanyExpensesService.update) — nunca
+// um valor persistido implicitamente, só uma leitura com fallback.
+enum RecurringFrequency {
+  weekly
+  monthly
+  yearly
+}
+
 type ProjectInstallment {
   id      String
   label   String
@@ -499,24 +510,26 @@ model ProjectExpense {
 // dinheiro/status de ProjectExpense, só que sem vínculo de projeto. Entra
 // na aba "A Pagar" do Financeiro junto com as despesas de projeto.
 model CompanyExpense {
-  id        String           @id @default(auto()) @map("_id") @db.ObjectId
-  companyId String           @db.ObjectId
-  company   Company          @relation(fields: [companyId], references: [id])
-  name      String
-  amount    Float
-  notes     String?
-  category  ExpenseCategory?
-  dueDate   DateTime?
-  status    PaymentStatus    @default(PENDING)
-  paidAt    DateTime?
-  // Ao marcar esta ocorrência como PAID, uma cópia pro mês seguinte (mesmo
-  // nome/valor/recurring/category, PENDING, dueDate +1 mês) é criada
-  // automaticamente — ver CompanyExpensesService.update. Cada ocorrência é
-  // uma linha independente (sem "série" compartilhada) — simples de
-  // propósito, mesmo espírito minimalista do resto do domínio financeiro.
-  recurring Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id                 String              @id @default(auto()) @map("_id") @db.ObjectId
+  companyId          String              @db.ObjectId
+  company            Company             @relation(fields: [companyId], references: [id])
+  name               String
+  amount             Float
+  notes              String?
+  category           ExpenseCategory?
+  dueDate            DateTime?
+  status             PaymentStatus       @default(PENDING)
+  paidAt             DateTime?
+  // Ao marcar esta ocorrência como PAID, uma cópia pra próxima ocorrência
+  // (mesmo nome/valor/recurring/category/recurringFrequency, PENDING,
+  // dueDate deslocado pela frequência) é criada automaticamente — ver
+  // CompanyExpensesService.update. Cada ocorrência é uma linha independente
+  // (sem "série" compartilhada) — simples de propósito, mesmo espírito
+  // minimalista do resto do domínio financeiro.
+  recurring          Boolean             @default(false)
+  recurringFrequency RecurringFrequency?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([companyId])
 }
@@ -806,27 +819,27 @@ type PlanAcquirerRef {
 // Shared reference data (no companyId), managed only by VINCEL_ADMIN — the
 // catalog of subscription tiers companies choose from.
 model Plan {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  name        String    @unique
-  description String?
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  name            String          @unique
+  description     String?
   // Amount charged per billing cycle, in BRL — the cycle length is
   // billingInterval, not necessarily a month (e.g. the YEARLY plan's price
   // is the full yearly charge, already discounted, not a monthly rate).
-  price       Float
+  price           Float
   // How often this plan is billed — Vincel itself has a single product,
   // offered as three Plan rows (one per interval) so each keeps its own
   // acquirerRefs/price/trialDays through the existing Plan/Subscription
   // machinery, with no special-casing needed elsewhere.
   billingInterval BillingInterval @default(MONTHLY)
-  trialDays   Int       @default(0)
-  active      Boolean   @default(true)
+  trialDays       Int             @default(0)
+  active          Boolean         @default(true)
   // At most one plan is default at a time — enforced at the application
   // layer (PlansService), not a DB constraint. New companies are auto-
   // trialed into whichever plan has this set.
-  isDefault   Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  isDefault       Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
 
   acquirerRefs  PlanAcquirerRef[]
   subscriptions Subscription[]

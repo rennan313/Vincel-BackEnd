@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ExpenseCategory, PaymentStatus } from '@prisma/client';
+import {
+  ExpenseCategory,
+  PaymentStatus,
+  RecurringFrequency,
+} from '@prisma/client';
 import {
   IsBoolean,
   IsDateString,
@@ -54,9 +58,21 @@ export class CreateCompanyExpenseDto {
   @ApiPropertyOptional({
     default: false,
     description:
-      'Ao marcar esta ocorrência como paga, gera automaticamente a do mês seguinte.',
+      'Ao marcar esta ocorrência como paga, gera automaticamente a próxima (deslocada por recurringFrequency).',
   })
   @IsOptional()
   @IsBoolean()
   recurring?: boolean;
+
+  @ApiPropertyOptional({
+    enum: RecurringFrequency,
+    default: RecurringFrequency.monthly,
+    description:
+      'Só relevante quando recurring é true. Sem valor, a próxima ocorrência é gerada como se fosse "monthly".',
+  })
+  @IsOptional()
+  @IsEnum(RecurringFrequency, {
+    message: 'Frequência de recorrência inválida.',
+  })
+  recurringFrequency?: RecurringFrequency;
 }

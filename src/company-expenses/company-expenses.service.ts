@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   PaymentStatus,
   Prisma,
+  RecurringFrequency,
   UserRole,
   type CompanyExpense,
 } from '@prisma/client';
@@ -11,6 +12,44 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCompanyExpenseDto } from './dto/create-company-expense.dto';
 import { ListCompanyExpensesDto } from './dto/list-company-expenses.dto';
 import { UpdateCompanyExpenseDto } from './dto/update-company-expense.dto';
+
+// +1 mês/ano preservando o dia, mas puxado pro último dia do mês de
+// destino quando ele for curto demais (ex.: 31 de janeiro + 1 mês vira 28/
+// 29 de fevereiro, nunca 2/3 de março — o que `date.setUTCMonth` sozinho
+// faria, por transbordar o dia pro mês seguinte).
+function addMonthsClamped(date: Date, months: number): Date {
+  const day = date.getUTCDate();
+  const result = new Date(date);
+  result.setUTCDate(1); // evita o mesmo transbordo enquanto desloca o mês
+  result.setUTCMonth(result.getUTCMonth() + months);
+  const daysInTargetMonth = new Date(
+    Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  result.setUTCDate(Math.min(day, daysInTargetMonth));
+  return result;
+}
+
+/** Desloca `date` pra próxima ocorrência de uma despesa recorrente, de
+ * acordo com a frequência escolhida. Sem frequência definida (registros
+ * criados antes desse campo existir), trata como "monthly" — nunca grava
+ * esse fallback, só o aplica na leitura (ver CompanyExpensesService.update). */
+export function nextRecurrenceDate(
+  date: Date,
+  frequency: RecurringFrequency | null,
+): Date {
+  switch (frequency) {
+    case RecurringFrequency.weekly: {
+      const result = new Date(date);
+      result.setUTCDate(result.getUTCDate() + 7);
+      return result;
+    }
+    case RecurringFrequency.yearly:
+      return addMonthsClamped(date, 12);
+    case RecurringFrequency.monthly:
+    default:
+      return addMonthsClamped(date, 1);
+  }
+}
 
 @Injectable()
 export class CompanyExpensesService {
@@ -91,10 +130,11 @@ export class CompanyExpensesService {
       dto.status === PaymentStatus.PAID &&
       existing.status !== PaymentStatus.PAID;
     if (justPaid && updated.recurring) {
-      const nextDueDate = updated.dueDate
-        ? new Date(updated.dueDate)
-        : new Date();
-      nextDueDate.setUTCMonth(nextDueDate.getUTCMonth() + 1);
+      const baseDate = updated.dueDate ? new Date(updated.dueDate) : new Date();
+      const nextDueDate = nextRecurrenceDate(
+        baseDate,
+        updated.recurringFrequency,
+      );
       await this.prisma.companyExpense.create({
         data: {
           companyId: updated.companyId,
@@ -102,6 +142,7 @@ export class CompanyExpensesService {
           amount: updated.amount,
           notes: updated.notes,
           category: updated.category,
+          recurringFrequency: updated.recurringFrequency,
           dueDate: nextDueDate,
           status: PaymentStatus.PENDING,
           recurring: true,
