@@ -55,4 +55,13 @@ export class FinancialController {
   ) {
     return this.financialService.payables(currentUser, query);
   }
+
+  @Get('cash-flow')
+  @ApiOperation({
+    summary:
+      'Projeção de fluxo de caixa (entradas/saídas pendentes por mês, mês atual + 5 seguintes).',
+  })
+  cashFlow(@CurrentUser() currentUser: AuthenticatedUser) {
+    return this.financialService.cashFlow(currentUser);
+  }
 }

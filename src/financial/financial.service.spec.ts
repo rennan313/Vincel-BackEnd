@@ -402,3 +402,183 @@ describe('FinancialService.payables', () => {
     expect(result.data[0].expenseId).toBe('c1');
   });
 });
+
+describe('FinancialService.cashFlow', () => {
+  let prisma: MockPrisma;
+  let service: FinancialService;
+
+  // "Hoje" fixo em 2026-09-26 — a janela de 6 meses vira sempre
+  // [2026-09, 2026-10, 2026-11, 2026-12, 2027-01, 2027-02], então os testes
+  // não dependem de em que mês real o CI/dev roda.
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-26T12:00:00.000Z'));
+    prisma = buildPrismaMock();
+    service = new FinancialService(prisma as unknown as PrismaService);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('buckets a pending installment into the month of its dueDate', async () => {
+    prisma.project.findMany.mockResolvedValue([
+      buildProject({
+        installments: [
+          {
+            id: 'i1',
+            label: 'Parcela 1',
+            amount: 5000,
+            status: PaymentStatus.PENDING,
+            dueDate: new Date('2026-11-05'),
+          },
+        ],
+      }),
+    ]);
+
+    const result = await service.cashFlow(buildCurrentUser());
+
+    expect(result.months.map((m) => m.month)).toEqual([
+      '2026-09',
+      '2026-10',
+      '2026-11',
+      '2026-12',
+      '2027-01',
+      '2027-02',
+    ]);
+    expect(result.months[2]).toMatchObject({
+      month: '2026-11',
+      receivables: 5000,
+    });
+    expect(
+      result.months
+        .filter((m) => m.month !== '2026-11')
+        .every((m) => m.receivables === 0),
+    ).toBe(true);
+  });
+
+  it('folds an overdue pending installment into the current month, not its past month', async () => {
+    prisma.project.findMany.mockResolvedValue([
+      buildProject({
+        installments: [
+          {
+            id: 'i1',
+            label: 'Parcela atrasada',
+            amount: 1000,
+            status: PaymentStatus.PENDING,
+            dueDate: new Date('2026-06-01'), // 3 meses antes de "hoje"
+          },
+        ],
+      }),
+    ]);
+
+    const result = await service.cashFlow(buildCurrentUser());
+
+    expect(result.months[0]).toMatchObject({
+      month: '2026-09',
+      receivables: 1000,
+    });
+  });
+
+  it('folds a dueDate beyond the projection window into the last bucket', async () => {
+    prisma.project.findMany.mockResolvedValue([
+      buildProject({
+        installments: [
+          {
+            id: 'i1',
+            label: 'Parcela distante',
+            amount: 2000,
+            status: PaymentStatus.PENDING,
+            dueDate: new Date('2027-08-01'), // além do 6º mês (2027-02)
+          },
+        ],
+      }),
+    ]);
+
+    const result = await service.cashFlow(buildCurrentUser());
+
+    expect(result.months[5]).toMatchObject({
+      month: '2027-02',
+      receivables: 2000,
+    });
+  });
+
+  it('sums ProjectExpense and CompanyExpense payables into the same month', async () => {
+    prisma.projectExpense.findMany.mockResolvedValue([
+      {
+        id: 'e1',
+        amount: 300,
+        status: PaymentStatus.PENDING,
+        dueDate: new Date('2026-10-15'),
+      },
+    ]);
+    prisma.companyExpense.findMany.mockResolvedValue([
+      {
+        id: 'c1',
+        amount: 4500,
+        status: PaymentStatus.PENDING,
+        dueDate: new Date('2026-10-20'),
+      },
+    ]);
+
+    const result = await service.cashFlow(buildCurrentUser());
+
+    expect(result.months[1]).toMatchObject({
+      month: '2026-10',
+      payables: 4800,
+    });
+  });
+
+  it('excludes dateless pending rows from the months but sums them into unscheduled totals', async () => {
+    prisma.project.findMany.mockResolvedValue([
+      buildProject({
+        installments: [
+          {
+            id: 'i1',
+            label: 'Sem vencimento',
+            amount: 700,
+            status: PaymentStatus.PENDING,
+            dueDate: null,
+          },
+        ],
+      }),
+    ]);
+    prisma.projectExpense.findMany.mockResolvedValue([
+      { id: 'e1', amount: 200, status: PaymentStatus.PENDING, dueDate: null },
+    ]);
+
+    const result = await service.cashFlow(buildCurrentUser());
+
+    expect(result.unscheduledReceivables).toBe(700);
+    expect(result.unscheduledPayables).toBe(200);
+    expect(
+      result.months.every((m) => m.receivables === 0 && m.payables === 0),
+    ).toBe(true);
+  });
+
+  it('ignores PAID rows entirely — not in any month, not in unscheduled', async () => {
+    prisma.project.findMany.mockResolvedValue([
+      buildProject({
+        installments: [
+          {
+            id: 'i1',
+            label: 'Já paga',
+            amount: 9999,
+            status: PaymentStatus.PAID,
+            dueDate: new Date('2026-10-01'),
+          },
+        ],
+      }),
+    ]);
+    prisma.companyExpense.findMany.mockResolvedValue([
+      { id: 'c1', amount: 9999, status: PaymentStatus.PAID, dueDate: null },
+    ]);
+
+    const result = await service.cashFlow(buildCurrentUser());
+
+    expect(
+      result.months.every((m) => m.receivables === 0 && m.payables === 0),
+    ).toBe(true);
+    expect(result.unscheduledReceivables).toBe(0);
+    expect(result.unscheduledPayables).toBe(0);
+  });
+});

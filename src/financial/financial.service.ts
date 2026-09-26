@@ -37,6 +37,44 @@ export interface PayableRow {
   recurring: boolean;
 }
 
+export interface CashFlowMonth {
+  month: string;
+  receivables: number;
+  payables: number;
+}
+
+export interface CashFlowResult {
+  months: CashFlowMonth[];
+  unscheduledReceivables: number;
+  unscheduledPayables: number;
+}
+
+// Quantos meses a projeção de fluxo de caixa olha pra frente (mês atual +
+// os seguintes) — mesmo grão que DashboardService.charts usa pra trás.
+const CASH_FLOW_MONTHS = 6;
+
+function monthKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** O mês atual mais os próximos `count - 1`, como chaves 'YYYY-MM', mês
+ * atual primeiro — o espelho de recentMonthKeys do dashboard.service.ts
+ * (aquela olha pra trás, esta olha pra frente). Mantida local, não
+ * importada de lá — pequena o bastante pra duplicar em vez de acoplar dois
+ * módulos de domínio diferentes por uma única função de data. */
+function upcomingMonthKeys(count: number): string[] {
+  const keys: string[] = [];
+  const cursor = new Date();
+  cursor.setUTCDate(1);
+  cursor.setUTCHours(0, 0, 0, 0);
+  for (let i = 0; i < count; i += 1) {
+    const d = new Date(cursor);
+    d.setUTCMonth(d.getUTCMonth() + i);
+    keys.push(monthKey(d));
+  }
+  return keys;
+}
+
 @Injectable()
 export class FinancialService {
   constructor(private readonly prisma: PrismaService) {}
@@ -251,5 +289,83 @@ export class FinancialService {
     const data = rows.slice(start, start + query.pageSize);
 
     return { data, total, page: query.page, pageSize: query.pageSize };
+  }
+
+  /**
+   * Projeção de fluxo de caixa — quanto entra/sai por mês, mês atual + os
+   * próximos CASH_FLOW_MONTHS-1. Só PENDING conta (PAID já aconteceu, não é
+   * "projeção"); atrasado (dueDate no passado) cai no mês atual — não faz
+   * sentido projetar um mês que já passou, é dinheiro ainda em aberto agora;
+   * além da janela cai no último bucket, pra nenhum valor com data sumir da
+   * soma. Sem dueDate não entra nos buckets (não dá pra posicionar na linha
+   * do tempo) mas é somado à parte em unscheduled* — nunca escondido.
+   */
+  async cashFlow(currentUser: AuthenticatedUser): Promise<CashFlowResult> {
+    const companyId = resolveCompanyId(currentUser);
+
+    const [projects, projectExpenses, companyExpenses] = await Promise.all([
+      this.prisma.project.findMany({
+        where: { companyId, deletedAt: null },
+        select: { installments: true },
+      }),
+      this.prisma.projectExpense.findMany({
+        where: { project: { companyId, deletedAt: null } },
+      }),
+      this.prisma.companyExpense.findMany({ where: { companyId } }),
+    ]);
+
+    const monthKeys = upcomingMonthKeys(CASH_FLOW_MONTHS);
+    const firstMonth = monthKeys[0];
+    const lastMonth = monthKeys[monthKeys.length - 1];
+
+    // Comparação lexicográfica funciona porque 'YYYY-MM' é zero-padded —
+    // mesma ordem de uma comparação de data.
+    function bucketFor(dueDate: Date): string {
+      const key = monthKey(dueDate);
+      if (key < firstMonth) return firstMonth;
+      if (key > lastMonth) return lastMonth;
+      return key;
+    }
+
+    const receivablesByMonth = new Map<string, number>();
+    const payablesByMonth = new Map<string, number>();
+    let unscheduledReceivables = 0;
+    let unscheduledPayables = 0;
+
+    for (const project of projects) {
+      for (const installment of project.installments ?? []) {
+        if (installment.status !== PaymentStatus.PENDING) continue;
+        if (!installment.dueDate) {
+          unscheduledReceivables += installment.amount;
+          continue;
+        }
+        const bucket = bucketFor(installment.dueDate);
+        receivablesByMonth.set(
+          bucket,
+          (receivablesByMonth.get(bucket) ?? 0) + installment.amount,
+        );
+      }
+    }
+
+    for (const expense of [...projectExpenses, ...companyExpenses]) {
+      if (expense.status !== PaymentStatus.PENDING) continue;
+      if (!expense.dueDate) {
+        unscheduledPayables += expense.amount;
+        continue;
+      }
+      const bucket = bucketFor(expense.dueDate);
+      payablesByMonth.set(
+        bucket,
+        (payablesByMonth.get(bucket) ?? 0) + expense.amount,
+      );
+    }
+
+    const months: CashFlowMonth[] = monthKeys.map((month) => ({
+      month,
+      receivables: receivablesByMonth.get(month) ?? 0,
+      payables: payablesByMonth.get(month) ?? 0,
+    }));
+
+    return { months, unscheduledReceivables, unscheduledPayables };
   }
 }
