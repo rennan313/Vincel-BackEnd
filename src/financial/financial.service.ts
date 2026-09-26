@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PaymentMethod, PaymentStatus } from '@prisma/client';
+import { ExpenseCategory, PaymentMethod, PaymentStatus } from '@prisma/client';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { resolveCompanyId } from '../common/company-scope';
 import { PrismaService } from '../prisma/prisma.service';
@@ -30,6 +30,7 @@ export interface PayableRow {
   clientName: string | null;
   name: string;
   amount: number;
+  category: ExpenseCategory | null;
   dueDate: Date | null;
   status: PaymentStatus;
   paidAt: Date | null;
@@ -201,6 +202,7 @@ export class FinancialService {
         clientName: row.project.clientName,
         name: row.name,
         amount: row.amount,
+        category: row.category,
         dueDate: row.dueDate,
         status: row.status,
         paidAt: row.paidAt,
@@ -214,6 +216,7 @@ export class FinancialService {
         clientName: null,
         name: row.name,
         amount: row.amount,
+        category: row.category,
         dueDate: row.dueDate,
         status: row.status,
         paidAt: row.paidAt,

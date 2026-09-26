@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { PaymentStatus, UserRole } from '@prisma/client';
+import { ExpenseCategory, PaymentStatus, UserRole } from '@prisma/client';
 import { CompanyExpensesService } from './company-expenses.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -47,6 +47,7 @@ function buildExpense(overrides: Partial<Record<string, unknown>> = {}) {
     name: 'Aluguel do escritório',
     amount: 4500,
     notes: null,
+    category: ExpenseCategory.rent,
     dueDate: new Date('2026-10-05'),
     status: PaymentStatus.PENDING,
     paidAt: null,
@@ -107,6 +108,7 @@ describe('CompanyExpensesService.update', () => {
         companyId: 'company-1',
         name: 'Aluguel do escritório',
         amount: 4500,
+        category: ExpenseCategory.rent,
         status: PaymentStatus.PENDING,
         recurring: true,
         dueDate: new Date('2026-11-05'),

@@ -1,4 +1,9 @@
-import { PaymentMethod, PaymentStatus, UserRole } from '@prisma/client';
+import {
+  ExpenseCategory,
+  PaymentMethod,
+  PaymentStatus,
+  UserRole,
+} from '@prisma/client';
 import { FinancialService } from './financial.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -240,17 +245,34 @@ describe('FinancialService.receivables', () => {
       buildProject({
         paymentMethod: PaymentMethod.installments,
         installments: [
-          { id: 'i1', label: 'Parcela 1', amount: 1000, status: PaymentStatus.PENDING, dueDate: null },
-          { id: 'i2', label: 'Parcela 2', amount: 1000, status: PaymentStatus.PENDING, dueDate: null },
+          {
+            id: 'i1',
+            label: 'Parcela 1',
+            amount: 1000,
+            status: PaymentStatus.PENDING,
+            dueDate: null,
+          },
+          {
+            id: 'i2',
+            label: 'Parcela 2',
+            amount: 1000,
+            status: PaymentStatus.PENDING,
+            dueDate: null,
+          },
         ],
       }),
     ]);
 
-    const result = await service.receivables(buildCurrentUser(), { page: 1, pageSize: 20 });
+    const result = await service.receivables(buildCurrentUser(), {
+      page: 1,
+      pageSize: 20,
+    });
 
-    expect(result.data.every((row) => row.paymentMethod === PaymentMethod.installments)).toBe(
-      true,
-    );
+    expect(
+      result.data.every(
+        (row) => row.paymentMethod === PaymentMethod.installments,
+      ),
+    ).toBe(true);
   });
 });
 
@@ -285,6 +307,7 @@ describe('FinancialService.payables', () => {
         projectId: 'p1',
         name: 'Taxa da prefeitura',
         amount: 300,
+        category: ExpenseCategory.taxes,
         dueDate: null,
         status: PaymentStatus.PENDING,
         paidAt: null,
@@ -305,6 +328,7 @@ describe('FinancialService.payables', () => {
       expenseId: 'e1',
       projectName: 'Residência Alto da Serra',
       clientName: 'Ana Beatriz Ferreira',
+      category: ExpenseCategory.taxes,
       recurring: false,
     });
   });
@@ -315,6 +339,7 @@ describe('FinancialService.payables', () => {
         id: 'c1',
         name: 'Aluguel do escritório',
         amount: 4500,
+        category: ExpenseCategory.rent,
         dueDate: null,
         status: PaymentStatus.PENDING,
         paidAt: null,
@@ -334,6 +359,7 @@ describe('FinancialService.payables', () => {
       projectId: null,
       projectName: null,
       clientName: null,
+      category: ExpenseCategory.rent,
       recurring: true,
     });
   });

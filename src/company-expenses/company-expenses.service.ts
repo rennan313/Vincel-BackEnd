@@ -101,6 +101,7 @@ export class CompanyExpensesService {
           name: updated.name,
           amount: updated.amount,
           notes: updated.notes,
+          category: updated.category,
           dueDate: nextDueDate,
           status: PaymentStatus.PENDING,
           recurring: true,

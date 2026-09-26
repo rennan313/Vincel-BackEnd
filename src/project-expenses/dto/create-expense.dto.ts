@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentStatus } from '@prisma/client';
+import { ExpenseCategory, PaymentStatus } from '@prisma/client';
 import {
   IsDateString,
   IsEnum,
@@ -25,6 +25,11 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ enum: ExpenseCategory })
+  @IsOptional()
+  @IsEnum(ExpenseCategory, { message: 'Categoria inválida.' })
+  category?: ExpenseCategory;
 
   @ApiPropertyOptional({
     description:
