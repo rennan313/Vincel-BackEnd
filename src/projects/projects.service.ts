@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, UserRole, type Project } from '@prisma/client';
+import { PaymentStatus, Prisma, UserRole, type Project } from '@prisma/client';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { resolveCompanyId } from '../common/company-scope';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ListProjectsDto } from './dto/list-projects.dto';
 import { PlanningPhaseDto } from './dto/planning-phase.dto';
+import { ProjectInstallmentDto } from './dto/project-installment.dto';
+import { UpdateInstallmentStatusDto } from './dto/update-installment-status.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 
 // PlanningPhaseDto.startDate is an ISO string (validated by @IsDateString);
@@ -21,6 +23,16 @@ function mapPlanningPhases(phases?: PlanningPhaseDto[]) {
       ...task,
       createdAt: new Date(task.createdAt),
     })),
+  }));
+}
+
+// Same string -> Date conversion as mapPlanningPhases, for the
+// dueDate/paidAt pair a ProjectInstallmentDto carries as ISO strings.
+function mapInstallments(installments?: ProjectInstallmentDto[]) {
+  return installments?.map((installment) => ({
+    ...installment,
+    dueDate: installment.dueDate ? new Date(installment.dueDate) : undefined,
+    paidAt: installment.paidAt ? new Date(installment.paidAt) : undefined,
   }));
 }
 
@@ -96,7 +108,7 @@ export class ProjectsService {
         estimatedHours: dto.estimatedHours,
         feeAmount: dto.feeAmount,
         paymentMethod: dto.paymentMethod,
-        installments: dto.installments,
+        installments: mapInstallments(dto.installments),
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
         scheduleStatusCategoryId: dto.scheduleStatusCategoryId,
@@ -134,12 +146,64 @@ export class ProjectsService {
         estimatedHours: dto.estimatedHours,
         feeAmount: dto.feeAmount,
         paymentMethod: dto.paymentMethod,
-        installments: dto.installments,
+        installments: mapInstallments(dto.installments),
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
         endDate: dto.endDate ? new Date(dto.endDate) : undefined,
         scheduleStatusCategoryId: dto.scheduleStatusCategoryId,
         address: dto.address,
       },
+    });
+  }
+
+  /** Marks a single honorário installment paid/pending without disturbing
+   * the rest of the array — unlike planningPhases (which the frontend
+   * recomputes wholesale, since ScheduleTab/AgendaPage already have the
+   * full project loaded), the Financeiro screen only ever has a flattened
+   * cross-project row, so the array rewrite happens server-side instead. */
+  async updateInstallmentStatus(
+    currentUser: AuthenticatedUser,
+    projectId: string,
+    installmentId: string,
+    dto: UpdateInstallmentStatusDto,
+  ) {
+    const project = await this.findScoped(currentUser, projectId);
+    const installments = (project.installments ?? []) as Array<{
+      id: string;
+      label: string;
+      amount: number;
+      dueDate?: Date | null;
+      status: PaymentStatus;
+      paidAt?: Date | null;
+    }>;
+
+    const found = installments.some((item) => item.id === installmentId);
+    if (!found) {
+      throw new NotFoundException('Parcela não encontrada neste projeto.');
+    }
+
+    const nextInstallments = installments.map((item) => {
+      if (item.id !== installmentId) return item;
+      return {
+        ...item,
+        status: dto.status ?? item.status,
+        paidAt:
+          dto.status === undefined
+            ? item.paidAt
+            : dto.status === PaymentStatus.PAID
+              ? new Date()
+              : null,
+        dueDate:
+          dto.dueDate === undefined
+            ? item.dueDate
+            : dto.dueDate === null
+              ? null
+              : new Date(dto.dueDate),
+      };
+    });
+
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { installments: nextInstallments },
     });
   }
 

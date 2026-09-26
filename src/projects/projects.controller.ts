@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ListProjectsDto } from './dto/list-projects.dto';
+import { UpdateInstallmentStatusDto } from './dto/update-installment-status.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectPdfService } from './project-pdf.service';
 import { ProjectsService } from './projects.service';
@@ -94,6 +95,24 @@ export class ProjectsController {
     @Body() dto: UpdateProjectDto,
   ) {
     return this.projectsService.update(currentUser, id, dto);
+  }
+
+  @Patch(':id/installments/:installmentId')
+  @ApiOperation({
+    summary: 'Marca uma parcela de honorário deste projeto como paga/pendente.',
+  })
+  updateInstallmentStatus(
+    @CurrentUser() currentUser: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('installmentId') installmentId: string,
+    @Body() dto: UpdateInstallmentStatusDto,
+  ) {
+    return this.projectsService.updateInstallmentStatus(
+      currentUser,
+      id,
+      installmentId,
+      dto,
+    );
   }
 
   @Patch(':id/activate')

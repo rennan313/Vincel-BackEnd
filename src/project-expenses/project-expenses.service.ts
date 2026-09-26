@@ -1,5 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { UserRole, type Project, type ProjectExpense } from '@prisma/client';
+import {
+  PaymentStatus,
+  UserRole,
+  type Project,
+  type ProjectExpense,
+} from '@prisma/client';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
@@ -24,7 +29,12 @@ export class ProjectExpensesService {
   ) {
     await this.assertProjectScoped(currentUser, projectId);
     return this.prisma.projectExpense.create({
-      data: { ...dto, projectId },
+      data: {
+        ...dto,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        paidAt: dto.paidAt ? new Date(dto.paidAt) : undefined,
+        projectId,
+      },
     });
   }
 
@@ -35,9 +45,33 @@ export class ProjectExpensesService {
     dto: UpdateExpenseDto,
   ) {
     await this.assertExpenseScoped(currentUser, projectId, expenseId);
+
+    // Same auto-set/clear-on-status-change convenience as
+    // ProjectsService.updateInstallmentStatus — an explicit paidAt in the
+    // body still wins, so this never fights a caller that sets it itself.
+    const paidAt =
+      dto.paidAt !== undefined
+        ? dto.paidAt
+          ? new Date(dto.paidAt)
+          : null
+        : dto.status === PaymentStatus.PAID
+          ? new Date()
+          : dto.status === PaymentStatus.PENDING
+            ? null
+            : undefined;
+
+    // undefined (not sent) leaves the field untouched; null explicitly
+    // clears it — same distinction paidAt above already makes.
+    const dueDate =
+      dto.dueDate === undefined
+        ? undefined
+        : dto.dueDate
+          ? new Date(dto.dueDate)
+          : null;
+
     return this.prisma.projectExpense.update({
       where: { id: expenseId },
-      data: dto,
+      data: { ...dto, dueDate, paidAt },
     });
   }
 
