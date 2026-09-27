@@ -75,4 +75,13 @@ export class CreateCompanyExpenseDto {
     message: 'Frequência de recorrência inválida.',
   })
   recurringFrequency?: RecurringFrequency;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'Exclui este lançamento da média mensal por categoria (FinancialService.categorySpend) — pra um gasto pontual/fora do padrão não distorcer a média.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  excludeFromAverage?: boolean;
 }

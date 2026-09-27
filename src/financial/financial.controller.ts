@@ -64,4 +64,13 @@ export class FinancialController {
   cashFlow(@CurrentUser() currentUser: AuthenticatedUser) {
     return this.financialService.cashFlow(currentUser);
   }
+
+  @Get('category-spend')
+  @ApiOperation({
+    summary:
+      'Média mensal de gasto pago por categoria (últimos 6 meses, exclui lançamentos marcados como atípicos).',
+  })
+  categorySpend(@CurrentUser() currentUser: AuthenticatedUser) {
+    return this.financialService.categorySpend(currentUser);
+  }
 }

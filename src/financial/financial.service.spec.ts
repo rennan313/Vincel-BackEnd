@@ -629,3 +629,156 @@ describe('FinancialService.cashFlow', () => {
     expect(result.unscheduledPayables).toBe(0);
   });
 });
+
+describe('FinancialService.categorySpend', () => {
+  let prisma: MockPrisma;
+  let service: FinancialService;
+
+  // "Hoje" fixo em 2026-09-26 — a janela de 6 meses vira sempre
+  // [2026-04 .. 2026-09], mesmo raciocínio do describe de cashFlow acima.
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-26T12:00:00.000Z'));
+    prisma = buildPrismaMock();
+    service = new FinancialService(prisma as unknown as PrismaService);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('sums PAID project and company expenses into the same category', async () => {
+    prisma.projectExpense.findMany.mockResolvedValue([
+      {
+        id: 'e1',
+        amount: 300,
+        category: ExpenseCategory.taxes,
+        status: PaymentStatus.PAID,
+        paidAt: new Date('2026-09-10'),
+        excludeFromAverage: false,
+      },
+    ]);
+    prisma.companyExpense.findMany.mockResolvedValue([
+      {
+        id: 'c1',
+        amount: 4500,
+        category: ExpenseCategory.rent,
+        status: PaymentStatus.PAID,
+        paidAt: new Date('2026-09-05'),
+        excludeFromAverage: false,
+      },
+      {
+        id: 'c2',
+        amount: 500,
+        category: ExpenseCategory.rent,
+        status: PaymentStatus.PAID,
+        paidAt: new Date('2026-08-05'),
+        excludeFromAverage: false,
+      },
+    ]);
+
+    const result = await service.categorySpend(buildCurrentUser());
+
+    expect(result.months).toBe(6);
+    expect(result.rows).toEqual([
+      {
+        category: ExpenseCategory.rent,
+        total: 5000,
+        average: 5000 / 6,
+        count: 2,
+      },
+      {
+        category: ExpenseCategory.taxes,
+        total: 300,
+        average: 300 / 6,
+        count: 1,
+      },
+    ]);
+  });
+
+  it('excludes rows flagged excludeFromAverage', async () => {
+    prisma.companyExpense.findMany.mockResolvedValue([
+      {
+        id: 'c1',
+        amount: 9999,
+        category: ExpenseCategory.other,
+        status: PaymentStatus.PAID,
+        paidAt: new Date('2026-09-10'),
+        excludeFromAverage: true,
+      },
+    ]);
+
+    const result = await service.categorySpend(buildCurrentUser());
+
+    expect(result.rows).toEqual([]);
+  });
+
+  it('queries only PAID rows within the 6-month window (mês atual + 5 anteriores)', async () => {
+    await service.categorySpend(buildCurrentUser());
+
+    // A filtragem por data/status é responsabilidade da query — aqui só
+    // confirmamos que ela pede exatamente a janela certa.
+    expect(prisma.projectExpense.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: PaymentStatus.PAID,
+          paidAt: { gte: new Date('2026-04-01T00:00:00.000Z') },
+        }),
+      }),
+    );
+    expect(prisma.companyExpense.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: PaymentStatus.PAID,
+          paidAt: { gte: new Date('2026-04-01T00:00:00.000Z') },
+        }),
+      }),
+    );
+  });
+
+  it('groups rows with no category under a null bucket', async () => {
+    prisma.projectExpense.findMany.mockResolvedValue([
+      {
+        id: 'e1',
+        amount: 200,
+        category: null,
+        status: PaymentStatus.PAID,
+        paidAt: new Date('2026-09-10'),
+        excludeFromAverage: false,
+      },
+    ]);
+
+    const result = await service.categorySpend(buildCurrentUser());
+
+    expect(result.rows).toEqual([
+      { category: null, total: 200, average: 200 / 6, count: 1 },
+    ]);
+  });
+
+  it('sorts rows descending by average', async () => {
+    prisma.companyExpense.findMany.mockResolvedValue([
+      {
+        id: 'c1',
+        amount: 100,
+        category: ExpenseCategory.marketing,
+        status: PaymentStatus.PAID,
+        paidAt: new Date('2026-09-10'),
+        excludeFromAverage: false,
+      },
+      {
+        id: 'c2',
+        amount: 4500,
+        category: ExpenseCategory.rent,
+        status: PaymentStatus.PAID,
+        paidAt: new Date('2026-09-05'),
+        excludeFromAverage: false,
+      },
+    ]);
+
+    const result = await service.categorySpend(buildCurrentUser());
+
+    expect(result.rows.map((row) => row.category)).toEqual([
+      ExpenseCategory.rent,
+      ExpenseCategory.marketing,
+    ]);
+  });
+});
